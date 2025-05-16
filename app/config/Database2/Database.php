@@ -5,7 +5,7 @@ class Database
     public static function getConnection()
     {
         $host = "localhost";
-        $db_name = "tokoserbafinal";
+        $db_name = "db_penjualan";
         $username = "root";
         $password = "";
 

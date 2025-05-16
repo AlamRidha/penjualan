@@ -1,65 +1,58 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once 'app/helpers/functions.php';
-require_once 'app/config/Controller.php';
 require_once 'app/config/Auth.php';
+require_once 'app/controllers/AuthController.php';
+
 
 $page = $_GET['page'] ?? 'home';
 
 switch ($page) {
-    case 'login':
-        include base_path('app/views/auth/login.php');
+    // Login/Register Admin & Pelanggan
+    case 'login_admin':
+        include base_path('app/views/admin/login.php');
         break;
-    case 'dashboard':
+
+    case 'login_admin_process':
+        (new AuthController())->loginAdmin($_POST['username'], $_POST['password']);
+        break;
+
+    case 'admin/dashboard':
         include base_path('app/views/admin/dashboard.php');
         break;
-    case 'data_product':
-        include base_path('app/views/admin/data_product.php');
+
+    // Data Produk
+    case 'admin/data_produk':
+        include base_path('app/views/admin/data_produk.php');
         break;
-    case 'data_category':
-        include base_path('app/views/admin/data_category.php');
+
+
+    case 'login_pelanggan':
+        include base_path('app/views/pelanggan/login.php');
         break;
-    case 'laporan_penjualan':
-        include base_path('app/views/admin/report.php');
+
+    case 'login_pelanggan_process':
+        (new AuthController())->loginPelanggan($_POST['email'], $_POST['password']);
         break;
-    case 'data_user':
-        include base_path('app/views/admin/data_user.php');
+
+    case 'register_pelanggan':
+        include base_path('app/views/pelanggan/register.php');
         break;
-    case 'home':
-        include base_path('app/views/customer/dashboard.php');
+
+    case 'register_pelanggan_process':
+        (new AuthController())->registerPelanggan($_POST);
         break;
-    case 'data_product_c':
-        include base_path('app/views/customer/data_product.php');
-        break;
-    case 'cart':
-        include base_path('app/views/customer/cart.php');
-        break;
-    case 'checkout':
-        include base_path('app/controllers/CheckoutController.php');
-        break;
-    case 'order_c':
-        include base_path('app/views/customer/order.php');
-        break;
-    case 'riwayat_c':
-        include base_path('app/views/customer/riwayat.php');
-        break;
-    case 'data_order':
-        include base_path('app/views/admin/data_order.php');
-        break;
-    case 'setting':
-        include base_path('app/views/layouts/Setting/setting.php');
-        break;
+
     case 'logout':
-        include base_path('app/controllers/LogoutController.php');
+        (new AuthController())->logoutAdmin();
         break;
-    case 'proses_login':
-        include 'app/controllers/AuthController.php';
-        break;
-    case 'register':
-        include base_path('app/views/auth/register.php');
-        break;
-    case 'proses_register':
-        include base_path('app/controllers/RegisterController.php');
+
+    // Dashboard default
+    case 'dashboard':
+        $content_view = base_path('app/views/dashboard/index.php');
+        include base_path('app/views/layouts/layout.php');
         break;
     default:
         echo "404 Page Not Found";

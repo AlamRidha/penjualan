@@ -1,4 +1,17 @@
 <?php
+
+// Cek apakah session sudah dimulai
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+
+function isLoggedIn()
+{
+    return isset($_SESSION['admin']) || isset($_SESSION['pelanggan']);
+}
+
+
 function base_path($path = '')
 {
     return __DIR__ . '/../../' . ltrim($path, '/');
@@ -6,24 +19,9 @@ function base_path($path = '')
 
 function base_url($path = '')
 {
-    return 'http://localhost/serba35/' . ltrim($path, '/');
+    return 'http://localhost/penjualan/' . ltrim($path, '/');
 }
 
-
-// function formatTanggalIndo($datetimeStr)
-// {
-//     $formatter = new IntlDateFormatter(
-//         'id_ID',
-//         IntlDateFormatter::FULL,
-//         IntlDateFormatter::SHORT,
-//         'Asia/Jakarta',
-//         IntlDateFormatter::GREGORIAN,
-//         "EEEE, d MMMM yyyy '/' HH:mm"
-//     );
-
-//     $timestamp = strtotime($datetimeStr);
-//     return $formatter->format($timestamp);
-// }
 
 function formatTanggalIndo($datetimeStr)
 {

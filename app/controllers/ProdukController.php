@@ -1,0 +1,230 @@
+<?php
+require_once __DIR__ . '/../config/database.php';
+
+$db = new Database();
+$conn = $db->getConnection();
+
+$aksi = $_GET['aksi'] ?? '';
+
+switch ($aksi) {
+    case 'tambah':
+        tambahProduk($conn);
+        break;
+    case 'edit':
+        editProduk($conn);
+        break;
+    case 'hapus':
+        hapusProduk($conn);
+        break;
+    case 'list':
+        listProduk($conn);
+        break;
+    case 'get':
+        getProdukById($conn);
+        break;
+    case 'detail':
+        header('Content-Type: application/json');
+        $id = $_GET['id'] ?? 0;
+        echo json_encode(detailProduk($conn, $id));
+        break;
+    default:
+        echo json_encode(['error' => 'Aksi tidak dikenal']);
+        break;
+}
+
+// --- Fungsi-fungsi ---
+
+function tambahProduk($conn)
+{
+    $nama = $_POST['nama_produk'];
+    $harga = $_POST['harga_produk'];
+    $stok = $_POST['stok_produk'];
+    $deskripsi = $_POST['deskripsi_produk'];
+    $foto = null;
+
+    if (isset($_FILES['foto_produk']) && $_FILES['foto_produk']['error'] === 0) {
+        $targetDir = '../../uploads/produk/';
+        if (!file_exists($targetDir)) {
+            mkdir($targetDir, 0777, true);
+        }
+
+        $fileName = time() . '_' . basename($_FILES['foto_produk']['name']);
+        $filePath = $targetDir . $fileName;
+
+        if (move_uploaded_file($_FILES['foto_produk']['tmp_name'], $filePath)) {
+            $foto = 'uploads/produk/' . $fileName;
+        }
+    }
+
+    $stmt = $conn->prepare("INSERT INTO produk (nama_produk, harga_produk, stok_produk, deskripsi_produk, foto_produk) VALUES (?, ?, ?, ?, ?)");
+    $stmt->bind_param("siiss", $nama, $harga, $stok, $deskripsi, $foto);
+    $stmt->execute();
+    $stmt->close();
+
+    echo json_encode(["status" => "success"]);
+    exit;
+}
+
+function editProduk($conn)
+{
+    $id = $_POST['id_produk'];
+    $nama = $_POST['nama_produk'];
+    $harga = $_POST['harga_produk'];
+    $stok = $_POST['stok_produk'];
+    $deskripsi = $_POST['deskripsi_produk'];
+    $fotoBaru = null;
+
+    $query = $conn->prepare("SELECT foto_produk FROM produk WHERE id_produk = ?");
+    $query->bind_param("i", $id);
+    $query->execute();
+    $query->store_result();
+
+    if ($query->num_rows > 0) {
+        $query->bind_result($fotoLama);
+        $query->fetch();
+        $fotoBaru = $fotoLama;
+    }
+    $query->close();
+
+    if (isset($_FILES['foto_produk']) && $_FILES['foto_produk']['error'] === 0) {
+        if ($fotoBaru && file_exists('../../' . $fotoBaru)) {
+            unlink('../../' . $fotoBaru);
+        }
+
+        $targetDir = '../../uploads/produk/';
+        if (!file_exists($targetDir)) {
+            mkdir($targetDir, 0777, true);
+        }
+
+        $fileName = time() . '_' . basename($_FILES['foto_produk']['name']);
+        $filePath = $targetDir . $fileName;
+
+        if (move_uploaded_file($_FILES['foto_produk']['tmp_name'], $filePath)) {
+            $fotoBaru = 'uploads/produk/' . $fileName;
+        }
+    }
+
+    $stmt = $conn->prepare("UPDATE produk SET nama_produk=?, harga_produk=?, stok_produk=?, deskripsi_produk=?, foto_produk=? WHERE id_produk=?");
+    $stmt->bind_param("siissi", $nama, $harga, $stok, $deskripsi, $fotoBaru, $id);
+    $stmt->execute();
+    $stmt->close();
+
+    echo json_encode(["status" => "success"]);
+    exit;
+}
+
+function hapusProduk($conn)
+{
+    $id = $_GET['id'];
+    $foto = null;
+
+    $query = $conn->prepare("SELECT foto_produk FROM produk WHERE id_produk = ?");
+    $query->bind_param("i", $id);
+    $query->execute();
+    $query->store_result();
+
+    if ($query->num_rows > 0) {
+        $query->bind_result($foto);
+        $query->fetch();
+    }
+    $query->close();
+
+    if ($foto && file_exists('../../' . $foto)) {
+        unlink('../../' . $foto);
+    }
+
+    $stmt = $conn->prepare("DELETE FROM produk WHERE id_produk = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+
+    if ($stmt->affected_rows > 0) {
+        echo json_encode(['status' => 'success', 'message' => 'Produk berhasil dihapus.']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Gagal menghapus produk.']);
+    }
+
+    $stmt->close();
+    $conn->close();
+}
+
+function listProduk($conn)
+{
+    header('Content-Type: application/json');
+
+    $columns = ['id_produk', 'nama_produk', 'deskripsi_produk', 'harga_produk', 'stok_produk'];
+    $limit = isset($_GET['length']) ? intval($_GET['length']) : 10;
+    $start = isset($_GET['start']) ? intval($_GET['start']) : 0;
+    $orderIndex = $_GET['order'][0]['column'] ?? 0;
+    $orderDir = $_GET['order'][0]['dir'] ?? 'asc';
+    $search = $_GET['search']['value'] ?? '';
+
+    $order = $columns[$orderIndex];
+    $totalQuery = $conn->query("SELECT COUNT(*) as total FROM produk");
+    $totalData = $totalQuery ? $totalQuery->fetch_assoc()['total'] : 0;
+
+    if (!empty($search)) {
+        $query = "SELECT * FROM produk WHERE nama_produk LIKE '%$search%' OR deskripsi_produk LIKE '%$search%' ORDER BY $order $orderDir LIMIT $start, $limit";
+        $filteredQuery = $conn->query("SELECT COUNT(*) as total FROM produk WHERE nama_produk LIKE '%$search%' OR deskripsi_produk LIKE '%$search%'");
+        $totalFiltered = $filteredQuery ? $filteredQuery->fetch_assoc()['total'] : 0;
+    } else {
+        $query = "SELECT * FROM produk ORDER BY $order $orderDir LIMIT $start, $limit";
+        $totalFiltered = $totalData;
+    }
+
+    $result = $conn->query($query);
+    $data = [];
+    $no = $start + 1;
+
+    while ($row = $result->fetch_assoc()) {
+        $nestedData = [];
+        $nestedData['no'] = $no++;
+        $nestedData['foto_produk'] = $row['foto_produk']
+            ? "<img src='{$row['foto_produk']}' alt='Foto' style='width:60px;'>"
+            : "<span class='text-muted'>Tidak ada</span>";
+        $nestedData['nama_produk'] = htmlspecialchars($row['nama_produk']);
+        $nestedData['deskripsi_produk'] = htmlspecialchars($row['deskripsi_produk']);
+        $nestedData['harga_produk'] = "Rp" . number_format($row['harga_produk'], 0, ',', '.');
+        $nestedData['stok_produk'] = $row['stok_produk'];
+        $nestedData['aksi'] = "
+     <button class='btn btn-sm btn-warning btn-edit' data-id='{$row['id_produk']}'>Edit</button>
+     <button class='btn btn-sm btn-danger btn-hapus' data-id='{$row['id_produk']}'>Hapus</button>";
+        $data[] = $nestedData;
+    }
+
+    echo json_encode([
+        "draw" => intval($_GET['draw'] ?? 0),
+        "recordsTotal" => intval($totalData),
+        "recordsFiltered" => intval($totalFiltered),
+        "data" => $data
+    ]);
+}
+
+function getProdukById($conn)
+{
+    $id = $_GET['id'] ?? 0;
+    $stmt = $conn->prepare("SELECT * FROM produk WHERE id_produk = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($produk = $result->fetch_assoc()) {
+        echo json_encode($produk);
+    } else {
+        echo json_encode(['error' => 'Produk tidak ditemukan']);
+    }
+
+    $stmt->close();
+    exit;
+}
+
+
+function detailProduk($conn, $id)
+{
+    $stmt = $conn->prepare("SELECT * FROM produk WHERE id_produk = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $produk = $result->fetch_assoc();
+    $stmt->close();
+    return $produk ?: ['error' => 'Produk tidak ditemukan'];
+}
