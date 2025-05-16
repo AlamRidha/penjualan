@@ -1,0 +1,138 @@
+<?php
+require_once base_path('app/controllers/ProductController.php');
+
+$keyword = $_GET['search'] ?? null;
+$allProducts = getAllProducts($keyword);
+
+// Pagination
+$perPage = 12; // 4 kolom x 3 baris
+$total = count($allProducts);
+$page = isset($_GET['page_no']) ? (int)$_GET['page_no'] : 1;
+$start = ($page - 1) * $perPage;
+$paginatedProducts = array_slice($allProducts, $start, $perPage);
+
+$totalPages = ceil($total / $perPage);
+?>
+
+
+<div class="container my-4">
+    <h2 class="mb-3">Produk Kami</h2>
+
+    <!-- Search Bar -->
+    <form class="mb-4" method="GET">
+        <input type="hidden" name="page" value="data_product">
+        <div class="input-group">
+            <input type="text" class="form-control" name="search" placeholder="Cari produk..." value="<?= htmlspecialchars($keyword) ?>">
+            <button class="btn btn-primary" type="submit">Cari</button>
+        </div>
+    </form>
+
+    <!-- Product Grid -->
+    <div class="row">
+        <?php if (count($paginatedProducts) === 0): ?>
+            <div class="col-12 text-center">
+                <p class="text-muted">Produk tidak ditemukan.</p>
+            </div>
+        <?php endif; ?>
+
+        <?php foreach ($paginatedProducts as $product): ?>
+            <div class="col-md-3 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <img src="<?= base_url($product['gambar']) ?>" class="card-img-top" style="height: 200px; object-fit: cover;" alt="<?= $product['nama_produk'] ?>">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title"><?= htmlspecialchars($product['nama_produk']) ?></h5>
+                        <p class="card-text text-muted"><?= htmlspecialchars($product['nama_category']) ?></p>
+                        <p class="card-text fw-bold text-primary">Rp <?= number_format($product['harga'], 0, ',', '.') ?></p>
+                        <div class="mt-auto">
+                            <button class="btn btn-sm btn-success w-100">Lihat Detail</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    </div>
+
+    <!-- Pagination -->
+    <?php if ($totalPages > 1): ?>
+        <nav>
+            <ul class="pagination justify-content-center">
+                <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                    <li class="page-item <?= $i == $page ? 'active' : '' ?>">
+                        <a class="page-link" href="?page=data_product<?= $keyword ? '&search=' . urlencode($keyword) : '' ?>&page_no=<?= $i ?>"><?= $i ?></a>
+                    </li>
+                <?php endfor; ?>
+            </ul>
+        </nav>
+    <?php endif; ?>
+</div>
+
+
+
+<?php
+class Database
+{
+
+    public static function getConnection()
+    {
+        $host = "localhost";
+        $db_name = "tokoserbafinal";
+        $username = "root";
+        $password = "";
+
+        try {
+            return new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
+        } catch (PDOException $e) {
+            die("Connection failed: " . $e->getMessage());
+        }
+    }
+}
+
+
+
+
+
+
+
+
+<h3>Daftar Pesanan Saya</h3>
+<?php if (empty($orders)): ?>
+    <div class="alert alert-info">Belum ada pesanan.</div>
+<?php else: ?>
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID Order</th>
+                    <th>Tanggal</th>
+                    <th>Status</th>
+                    <th>Produk</th>
+                    <th>Jumlah</th>
+                    <th>Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($orders as $order): ?>
+                    <tr>
+                        <td><?= $order['id_order'] ?></td>
+                        <td><?= date('d-m-Y H:i', strtotime($order['tanggal_order'])) ?></td>
+                        <td>
+                            <?php
+                            $badge = [
+                                'pending' => 'warning',
+                                'diproses' => 'primary',
+                                'selesai' => 'success'
+                            ];
+                            ?>
+                            <span class="badge bg-<?= $badge[$order['status']] ?? 'secondary' ?>">
+                                <?= ucfirst($order['status']) ?>
+                            </span>
+                        </td>
+                        <td><?= $order['nama_produk'] ?></td>
+                        <td><?= $order['jumlah'] ?></td>
+                        <td>Rp <?= number_format($order['subtotal'], 0, ',', '.') ?></td>
+                    </tr>
+                <?php endforeach ?>
+            </tbody>
+        </table>
+    </div>
+<?php endif ?>
