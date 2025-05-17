@@ -1,3 +1,8 @@
 .env
 .env.backup
 .env.production
+
+uploads/*.jpg
+uploads/*.jpeg
+uploads/*.png
+uploads/*.gif
