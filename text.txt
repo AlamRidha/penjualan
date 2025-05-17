@@ -1,138 +1,195 @@
-<?php
-require_once base_path('app/controllers/ProductController.php');
+Ongkir
+<!-- Tambahkan di bagian HTML -->
+<h2>Data Ongkos Kirim</h2>
+<table id="ongkirTable" class="display" style="width:100%">
+    <thead>
+        <tr>
+            <th>No</th>
+            <th>Nama Kota</th>
+            <th>Tarif</th>
+            <th>Aksi</th>
+        </tr>
+    </thead>
+</table>
 
-$keyword = $_GET['search'] ?? null;
-$allProducts = getAllProducts($keyword);
-
-// Pagination
-$perPage = 12; // 4 kolom x 3 baris
-$total = count($allProducts);
-$page = isset($_GET['page_no']) ? (int)$_GET['page_no'] : 1;
-$start = ($page - 1) * $perPage;
-$paginatedProducts = array_slice($allProducts, $start, $perPage);
-
-$totalPages = ceil($total / $perPage);
-?>
-
-
-<div class="container my-4">
-    <h2 class="mb-3">Produk Kami</h2>
-
-    <!-- Search Bar -->
-    <form class="mb-4" method="GET">
-        <input type="hidden" name="page" value="data_product">
-        <div class="input-group">
-            <input type="text" class="form-control" name="search" placeholder="Cari produk..." value="<?= htmlspecialchars($keyword) ?>">
-            <button class="btn btn-primary" type="submit">Cari</button>
-        </div>
-    </form>
-
-    <!-- Product Grid -->
-    <div class="row">
-        <?php if (count($paginatedProducts) === 0): ?>
-            <div class="col-12 text-center">
-                <p class="text-muted">Produk tidak ditemukan.</p>
-            </div>
-        <?php endif; ?>
-
-        <?php foreach ($paginatedProducts as $product): ?>
-            <div class="col-md-3 mb-4">
-                <div class="card h-100 shadow-sm">
-                    <img src="<?= base_url($product['gambar']) ?>" class="card-img-top" style="height: 200px; object-fit: cover;" alt="<?= $product['nama_produk'] ?>">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title"><?= htmlspecialchars($product['nama_produk']) ?></h5>
-                        <p class="card-text text-muted"><?= htmlspecialchars($product['nama_category']) ?></p>
-                        <p class="card-text fw-bold text-primary">Rp <?= number_format($product['harga'], 0, ',', '.') ?></p>
-                        <div class="mt-auto">
-                            <button class="btn btn-sm btn-success w-100">Lihat Detail</button>
-                        </div>
+<!-- Modal Tambah Ongkir -->
+<div class="modal fade" id="modalTambahOngkir" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="formTambahOngkir">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Tambah Ongkos Kirim</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label>Nama Kota</label>
+                        <input type="text" name="nama_kota" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Tarif</label>
+                        <input type="number" name="tarif" class="form-control" required step="0.01">
                     </div>
                 </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success">Simpan</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                </div>
             </div>
-        <?php endforeach; ?>
+        </form>
     </div>
-
-    <!-- Pagination -->
-    <?php if ($totalPages > 1): ?>
-        <nav>
-            <ul class="pagination justify-content-center">
-                <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                    <li class="page-item <?= $i == $page ? 'active' : '' ?>">
-                        <a class="page-link" href="?page=data_product<?= $keyword ? '&search=' . urlencode($keyword) : '' ?>&page_no=<?= $i ?>"><?= $i ?></a>
-                    </li>
-                <?php endfor; ?>
-            </ul>
-        </nav>
-    <?php endif; ?>
 </div>
 
-
-
-<?php
-class Database
-{
-
-    public static function getConnection()
-    {
-        $host = "localhost";
-        $db_name = "tokoserbafinal";
-        $username = "root";
-        $password = "";
-
-        try {
-            return new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
-        } catch (PDOException $e) {
-            die("Connection failed: " . $e->getMessage());
-        }
-    }
-}
-
-
-
-
-
-
-
-
-<h3>Daftar Pesanan Saya</h3>
-<?php if (empty($orders)): ?>
-    <div class="alert alert-info">Belum ada pesanan.</div>
-<?php else: ?>
-    <div class="table-responsive">
-        <table class="table table-bordered table-striped">
-            <thead class="table-dark">
-                <tr>
-                    <th>ID Order</th>
-                    <th>Tanggal</th>
-                    <th>Status</th>
-                    <th>Produk</th>
-                    <th>Jumlah</th>
-                    <th>Subtotal</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($orders as $order): ?>
-                    <tr>
-                        <td><?= $order['id_order'] ?></td>
-                        <td><?= date('d-m-Y H:i', strtotime($order['tanggal_order'])) ?></td>
-                        <td>
-                            <?php
-                            $badge = [
-                                'pending' => 'warning',
-                                'diproses' => 'primary',
-                                'selesai' => 'success'
-                            ];
-                            ?>
-                            <span class="badge bg-<?= $badge[$order['status']] ?? 'secondary' ?>">
-                                <?= ucfirst($order['status']) ?>
-                            </span>
-                        </td>
-                        <td><?= $order['nama_produk'] ?></td>
-                        <td><?= $order['jumlah'] ?></td>
-                        <td>Rp <?= number_format($order['subtotal'], 0, ',', '.') ?></td>
-                    </tr>
-                <?php endforeach ?>
-            </tbody>
-        </table>
+<!-- Modal Edit Ongkir -->
+<div class="modal fade" id="modalEditOngkir" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="formEditOngkir">
+            <input type="hidden" name="id_ongkir" id="edit_id_ongkir">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Ongkos Kirim</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label>Nama Kota</label>
+                        <input type="text" name="nama_kota" id="edit_nama_kota" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Tarif</label>
+                        <input type="number" name="tarif" id="edit_tarif" class="form-control" required step="0.01">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Update</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                </div>
+            </div>
+        </form>
     </div>
-<?php endif ?>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Inisialisasi DataTable
+    let ongkirTable = $('#ongkirTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: 'app/controllers/OngkirController.php?aksi=list',
+        columns: [
+            { data: 'no' },
+            { data: 'nama_kota' },
+            { data: 'tarif' },
+            { 
+                data: 'aksi',
+                orderable: false,
+                searchable: false 
+            }
+        ]
+    });
+
+    // Handle form tambah ongkir
+    $('#formTambahOngkir').submit(function(e) {
+        e.preventDefault();
+        $.ajax({
+            url: 'app/controllers/OngkirController.php?aksi=tambah',
+            type: 'POST',
+            data: $(this).serialize(),
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    $('#modalTambahOngkir').modal('hide');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Sukses!',
+                        text: response.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    ongkirTable.ajax.reload(null, false);
+                } else {
+                    Swal.fire('Gagal!', response.message, 'error');
+                }
+            },
+            error: function(xhr) {
+                Swal.fire('Gagal!', 'Terjadi kesalahan: ' + xhr.statusText, 'error');
+            }
+        });
+    });
+
+    // Handle klik tombol edit
+    $('#ongkirTable').on('click', '.btn-edit', function() {
+        const id = $(this).data('id');
+        $.getJSON('app/controllers/OngkirController.php?aksi=get&id=' + id, function(data) {
+            $('#edit_id_ongkir').val(data.id_ongkir);
+            $('#edit_nama_kota').val(data.nama_kota);
+            $('#edit_tarif').val(data.tarif);
+            $('#modalEditOngkir').modal('show');
+        });
+    });
+
+    // Handle form edit ongkir
+    $('#formEditOngkir').submit(function(e) {
+        e.preventDefault();
+        $.ajax({
+            url: 'app/controllers/OngkirController.php?aksi=edit',
+            type: 'POST',
+            data: $(this).serialize(),
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    $('#modalEditOngkir').modal('hide');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: response.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    ongkirTable.ajax.reload(null, false);
+                } else {
+                    Swal.fire('Gagal!', response.message, 'error');
+                }
+            },
+            error: function(xhr) {
+                Swal.fire('Gagal!', 'Terjadi kesalahan: ' + xhr.statusText, 'error');
+            }
+        });
+    });
+
+    // Handle klik tombol hapus
+    $('#ongkirTable').on('click', '.btn-hapus', function() {
+        const id = $(this).data('id');
+        Swal.fire({
+            title: 'Yakin ingin menghapus?',
+            text: 'Data ongkos kirim akan dihapus permanen.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: 'app/controllers/OngkirController.php?aksi=hapus',
+                    type: 'POST',
+                    data: { id: id },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire('Terhapus!', response.message, 'success');
+                            ongkirTable.ajax.reload(null, false);
+                        } else {
+                            Swal.fire('Gagal!', response.message, 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        Swal.fire('Gagal!', 'Terjadi kesalahan: ' + xhr.statusText, 'error');
+                    }
+                });
+            }
+        });
+    });
+});
+</script>

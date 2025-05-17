@@ -84,6 +84,7 @@ include base_path('app/views/layouts/header.php');
 <div class="sidebar" id="sidebar">
     <a href="<?= base_url('index.php?page=admin/dashboard'); ?>">🏠 Dashboard</a>
     <a href="<?= base_url('index.php?page=admin/data_produk'); ?>">📁 Data Produk</a>
+    <a href="<?= base_url('index.php?page=admin/data_pelanggan'); ?>">🧑 Data Pelanggan</a>
     <a href="<?= base_url('index.php?page=logout'); ?>">🚪 Logout</a>
 </div>
 

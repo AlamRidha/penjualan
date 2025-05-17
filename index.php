@@ -28,6 +28,10 @@ switch ($page) {
         include base_path('app/views/admin/data_produk.php');
         break;
 
+    // Data Pelanggan
+    case 'admin/data_pelanggan':
+        include base_path('app/views/admin/data_pelanggan.php');
+        break;
 
     case 'login_pelanggan':
         include base_path('app/views/pelanggan/login.php');
