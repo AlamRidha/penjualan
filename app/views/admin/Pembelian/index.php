@@ -96,19 +96,35 @@
                 </div>
 
                 <h6 class="mt-3">Produk yang Dibeli</h6>
-                <table class="table table-bordered" id="detailProdukTable">
-                    <thead>
-                        <tr>
-                            <th>Produk</th>
-                            <th>Harga</th>
-                            <th>Jumlah</th>
-                            <th>Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody id="detailProdukBody">
-                        <!-- Data produk akan diisi via AJAX -->
-                    </tbody>
-                </table>
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="detailProdukTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="40%">Produk</th>
+                                <th width="20%">Harga</th>
+                                <th width="10%">Jumlah</th>
+                                <th width="30%">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailProdukBody">
+                            <!-- Data produk akan diisi via AJAX -->
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="3" class="text-end">Total Produk:</th>
+                                <th id="totalProduk">Rp0</th>
+                            </tr>
+                            <tr>
+                                <th colspan="3" class="text-end">Ongkos Kirim:</th>
+                                <th id="totalOngkir">Rp0</th>
+                            </tr>
+                            <tr class="table-active">
+                                <th colspan="3" class="text-end">Total Pembelian:</th>
+                                <th id="totalPembelian">Rp0</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
@@ -204,6 +220,7 @@
             $.getJSON('app/controllers/PembelianController.php?aksi=detail&id=' + id, function(response) {
                 if (response.success) {
                     const data = response.data;
+                    const produk = response.produk || [];
 
                     // Isi data pembelian
                     $('#detail_id').text(data.id_pembelian);
@@ -220,8 +237,42 @@
                     $('#detail_ongkir').text('Rp' + data.tarif);
                     $('#detail_alamat').text(data.alamat_pengiriman);
 
-                    // TODO: Tambahkan AJAX untuk mendapatkan detail produk yang dibeli
-                    // $('#detailProdukBody').html(...);
+                    // Isi data produk
+                    let produkHtml = '';
+                    let totalProduk = 0;
+
+                    if (produk.length > 0) {
+                        produk.forEach(function(item) {
+                            produkHtml += `
+                        <tr>
+                            <td>
+                                <strong>${item.nama_produk}</strong>
+                                ${item.foto_produk ? 
+                                 `<br><img src="${item.foto_produk}" alt="${item.nama_produk}" 
+                                  class="img-thumbnail mt-2" style="max-width: 80px;">` : ''}
+                                ${item.deskripsi_produk ? 
+                                 `<p class="text-muted small mt-1 mb-0">${item.deskripsi_produk}</p>` : ''}
+                            </td>
+                            <td class="text-end">${item.harga_formatted}</td>
+                            <td class="text-center">${item.jumlah}</td>
+                            <td class="text-end">${item.sub_harga_formatted}</td>
+                        </tr>
+                    `;
+                            totalProduk += parseFloat(item.sub_harga);
+                        });
+                    } else {
+                        produkHtml = '<tr><td colspan="4" class="text-center">Tidak ada produk</td></tr>';
+                    }
+
+                    $('#detailProdukBody').html(produkHtml);
+
+                    // Hitung total
+                    const totalOngkir = parseFloat(data.tarif) || 0;
+                    const totalPembelian = totalProduk + totalOngkir;
+
+                    $('#totalProduk').text('Rp' + numberFormat(totalProduk));
+                    $('#totalOngkir').text('Rp' + numberFormat(totalOngkir));
+                    $('#totalPembelian').text('Rp' + numberFormat(totalPembelian));
 
                     $('#modalDetailPembelian').modal('show');
                 } else {
@@ -229,6 +280,11 @@
                 }
             });
         });
+
+        // Fungsi untuk format number
+        function numberFormat(number) {
+            return new Intl.NumberFormat('id-ID').format(number);
+        }
 
         // Handle klik tombol ubah status
         $('#pembelianTable').on('click', '.btn-edit-status', function() {

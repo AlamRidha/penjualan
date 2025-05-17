@@ -43,6 +43,11 @@ switch ($page) {
         include base_path('app/views/admin/data_pembelian.php');
         break;
 
+    // Data Laporan
+    case 'admin/data_penjualan':
+        include base_path('app/views/admin/data_laporan.php');
+        break;
+
     case 'login_pelanggan':
         include base_path('app/views/pelanggan/login.php');
         break;

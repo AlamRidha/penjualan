@@ -335,6 +335,9 @@ function getDetailPembelian($conn)
             throw new Exception('Data pembelian tidak ditemukan');
         }
 
+        // Ambil detail produk yang dibeli
+        $produk = getDetailProdukPembelian($conn, $id);
+
         // Format data
         $pembelian['tanggal_pembelian'] = date('d/m/Y H:i', strtotime($pembelian['tanggal_pembelian']));
         $pembelian['total_pembelian'] = number_format($pembelian['total_pembelian'], 0, ',', '.');
@@ -342,7 +345,8 @@ function getDetailPembelian($conn)
 
         echo json_encode([
             'success' => true,
-            'data' => $pembelian
+            'data' => $pembelian,
+            'produk' => $produk
         ]);
     } catch (Exception $e) {
         echo json_encode([
@@ -364,4 +368,28 @@ function getStatusBadge($status)
     ];
 
     return $badges[$status] ?? $status;
+}
+
+
+function getDetailProdukPembelian($conn, $id_pembelian)
+{
+    $query = "SELECT pp.*, p.foto_produk, p.deskripsi_produk
+              FROM pembelian_produk pp
+              JOIN produk p ON pp.id_produk = p.id_produk
+              WHERE pp.id_pembelian = ?";
+
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("i", $id_pembelian);
+    $stmt->execute();
+
+    $result = $stmt->get_result();
+    $produk = [];
+
+    while ($row = $result->fetch_assoc()) {
+        $row['harga_formatted'] = 'Rp' . number_format($row['harga'], 0, ',', '.');
+        $row['sub_harga_formatted'] = 'Rp' . number_format($row['sub_harga'], 0, ',', '.');
+        $produk[] = $row;
+    }
+
+    return $produk;
 }

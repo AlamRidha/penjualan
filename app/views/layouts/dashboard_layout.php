@@ -87,6 +87,7 @@ include base_path('app/views/layouts/header.php');
     <a href="<?= base_url('index.php?page=admin/data_pelanggan'); ?>">🧑 Data Pelanggan</a>
     <a href="<?= base_url('index.php?page=admin/data_ongkir'); ?>">💰 Tarif Kota</a>
     <a href="<?= base_url('index.php?page=admin/data_pembelian'); ?>">💳 Pembelian</a>
+    <a href="<?= base_url('index.php?page=admin/data_penjualan'); ?>">🛒 Penjualan</a>
     <a href="<?= base_url('index.php?page=logout'); ?>">🚪 Logout</a>
 </div>
 
