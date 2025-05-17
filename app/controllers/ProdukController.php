@@ -32,17 +32,53 @@ switch ($aksi) {
         break;
 }
 
+
+function validateInput($data)
+{
+    return htmlspecialchars(trim($data));
+}
+
+function validateUploadedFile($file)
+{
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+
+    $maxSize = 10 * 1024 * 1024;
+
+    if (!in_array($file['type'], $allowedTypes)) {
+        return 'Tipe file tidak valid. Hanya JPG, PNG, JPEG, WEBP.';
+    }
+
+    if ($file['size'] > $maxSize) {
+        return 'Ukuran file terlalu besar. Maksimum 2MB.';
+    }
+
+    return null; // Tidak ada error
+}
+
 // --- Fungsi-fungsi ---
 
 function tambahProduk($conn)
 {
-    $nama = $_POST['nama_produk'];
-    $harga = $_POST['harga_produk'];
-    $stok = $_POST['stok_produk'];
-    $deskripsi = $_POST['deskripsi_produk'];
+    $nama = validateInput($_POST['nama_produk'] ?? '');
+    $harga = intval($_POST['harga_produk'] ?? 0);
+    $stok =  intval($_POST['stok_produk'] ?? 0);
+    $deskripsi = validateInput($_POST['deskripsi_produk'] ?? '');
     $foto = null;
 
+    if (empty($nama) || $harga <= 0 || $stok < 0 || empty($deskripsi)) {
+        echo json_encode(['status' => 'error', 'message' => 'Form tidak lengkap atau tidak valid']);
+        exit;
+    }
+
     if (isset($_FILES['foto_produk']) && $_FILES['foto_produk']['error'] === 0) {
+
+        $error = validateUploadedFile($_FILES['foto_produk']);
+        if ($error) {
+            echo json_encode(['status' => 'error', 'message' => $error]);
+            exit;
+        }
+
+
         $targetDir = '../../uploads/produk/';
         if (!file_exists($targetDir)) {
             mkdir($targetDir, 0777, true);
@@ -67,12 +103,18 @@ function tambahProduk($conn)
 
 function editProduk($conn)
 {
-    $id = $_POST['id_produk'];
-    $nama = $_POST['nama_produk'];
-    $harga = $_POST['harga_produk'];
-    $stok = $_POST['stok_produk'];
-    $deskripsi = $_POST['deskripsi_produk'];
+    $id = intval($_POST['id_produk'] ?? 0);
+    $nama = validateInput($_POST['nama_produk'] ?? '');
+    $harga = intval($_POST['harga_produk'] ?? 0);
+    $stok = intval($_POST['stok_produk'] ?? 0);
+    $deskripsi = validateInput($_POST['deskripsi_produk'] ?? '');
     $fotoBaru = null;
+
+    if ($id <= 0 || empty($nama) || $harga <= 0 || $stok < 0 || empty($deskripsi)) {
+        echo json_encode(['status' => 'error', 'message' => 'Form tidak lengkap atau tidak valid']);
+        exit;
+    }
+
 
     $query = $conn->prepare("SELECT foto_produk FROM produk WHERE id_produk = ?");
     $query->bind_param("i", $id);
@@ -87,6 +129,14 @@ function editProduk($conn)
     $query->close();
 
     if (isset($_FILES['foto_produk']) && $_FILES['foto_produk']['error'] === 0) {
+
+        $error = validateUploadedFile($_FILES['foto_produk']);
+        if ($error) {
+            echo json_encode(['status' => 'error', 'message' => $error]);
+            exit;
+        }
+
+
         if ($fotoBaru && file_exists('../../' . $fotoBaru)) {
             unlink('../../' . $fotoBaru);
         }

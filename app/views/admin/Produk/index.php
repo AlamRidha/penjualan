@@ -153,6 +153,13 @@
                 success: function() {
                     $('#modalTambahProduk').modal('hide');
                     table.ajax.reload(null, false);
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: 'Produk berhasil ditambahkan.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
                 },
                 error: function() {
                     alert('Gagal menambah produk.');
@@ -197,6 +204,13 @@
                 success: function() {
                     $('#modalEditProduk').modal('hide');
                     table.ajax.reload(null, false);
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: 'Produk berhasil diperbarui.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
                 },
                 error: function() {
                     alert('Gagal mengedit produk.');
