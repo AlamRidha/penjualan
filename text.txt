@@ -270,3 +270,158 @@ $(document).ready(function() {
         }
     });
 </script>
+
+
+
+
+
+    <div class="container">
+        <h2 class="my-4">Keranjang Belanja</h2>
+
+        <?php if (empty($cart['items'])): ?>
+            <div class="alert alert-info">
+                Keranjang belanja Anda kosong. <a href="index.php?page=pelanggan/data_product">Mulai belanja</a>
+            </div>
+        <?php else: ?>
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Produk</th>
+                                            <th>Harga</th>
+                                            <th>Jumlah</th>
+                                            <th>Subtotal</th>
+                                            <th>Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($cart['items'] as $item): ?>
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <?php if ($item['foto']): ?>
+                                                            <img src="<?= $item['foto'] ?>" alt="<?= $item['nama'] ?>" class="img-thumbnail me-3" width="60">
+                                                        <?php endif; ?>
+                                                        <div>
+                                                            <h6 class="mb-0"><?= $item['nama'] ?></h6>
+                                                            <small class="text-muted">Stok: <?= $item['stok'] ?></small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>Rp<?= number_format($item['harga'], 0, ',', '.') ?></td>
+                                                <td>
+                                                    <input type="number"
+                                                        class="form-control quantity-input"
+                                                        value="<?= $item['quantity'] ?>"
+                                                        min="1"
+                                                        max="<?= $item['stok'] ?>"
+                                                        data-id="<?= $item['id'] ?>"
+                                                        style="width: 80px;">
+                                                </td>
+                                                <td>Rp<?= number_format($item['subtotal'], 0, ',', '.') ?></td>
+                                                <!-- Di dalam tabel keranjang, perbaiki bagian input quantity -->
+                                                <td>
+                                                    <div class="input-group" style="width: 120px;">
+                                                        <button class="btn btn-outline-secondary btn-minus" data-id="<?= $item['id'] ?>">-</button>
+                                                        <input type="number" class="form-control text-center quantity-input"
+                                                            value="<?= $item['quantity'] ?>" min="1" max="<?= $item['stok'] ?>"
+                                                            data-id="<?= $item['id'] ?>">
+                                                        <button class="btn btn-outline-secondary btn-plus" data-id="<?= $item['id'] ?>">+</button>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-danger remove-item" data-id="<?= $item['id'] ?>">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Ringkasan Belanja</h5>
+                            <hr>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Total Harga:</span>
+                                <strong>Rp<?= number_format($cart['total'], 0, ',', '.') ?></strong>
+                            </div>
+                            <button class="btn btn-primary w-100 mt-3" id="checkout-btn" data-bs-toggle="modal" data-bs-target="#checkoutModal">
+                                Lanjut ke Pembayaran
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="checkoutModalLabel">Informasi Pengiriman</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="checkoutForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nama" class="form-label">Nama Lengkap</label>
+                        <input type="text" class="form-control" id="nama" name="nama" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_ongkir" class="form-label">Kota</label>
+                        <select class="form-select" id="id_ongkir" name="id_ongkir" required>
+                            <option value="">-- Pilih Kota --</option>
+                            <?php
+                            $ongkirQuery = $koneksi->query("SELECT * FROM ongkir");
+                            while ($ongkir = $ongkirQuery->fetch_assoc()):
+                            ?>
+                                <option value="<?= $ongkir['id_ongkir'] ?>" data-tarif="<?= $ongkir['tarif'] ?>">
+                                    <?= $ongkir['nama_kota'] ?> - Rp<?= number_format($ongkir['tarif'], 0, ',', '.') ?>
+                                </option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="alamat" class="form-label">Alamat Lengkap</label>
+                        <textarea class="form-control" id="alamat" name="alamat" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="bukti" class="form-label">Upload Bukti Pembayaran</label>
+                        <input type="file" class="form-control" id="bukti" name="bukti" accept="image/*" required>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Proses Pesanan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

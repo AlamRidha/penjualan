@@ -28,7 +28,7 @@ include base_path('app/views/layouts/header.php');
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto">
-                <a href="index.php?page=cart" class="btn btn-outline-light position-relative">
+                <a href="index.php?page=pelanggan/cart" class="btn btn-outline-light position-relative">
                     🛒 Keranjang
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="cart-count">
                         <?= isset($_SESSION['cart']) ? count($_SESSION['cart']) : 0 ?>

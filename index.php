@@ -65,6 +65,21 @@ switch ($page) {
         include base_path('app/views/pelanggan/data_produk.php');
         break;
 
+    // Data Keranjang
+    case 'pelanggan/cart':
+        // include base_path('app/views/pelanggan/cart.php');
+        require_once base_path('app/controllers/CartController.php');
+        $db = new Database();
+        $conn = $db->getConnection();
+        $cart = getCart($conn);
+        include base_path('app/views/pelanggan/cart.php');
+        break;
+
+
+    case 'cart_action':
+        require_once base_path('app/controllers/CartController.php');
+        break;
+
     case 'register_pelanggan':
         include base_path('app/views/pelanggan/register.php');
         break;

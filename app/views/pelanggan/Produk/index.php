@@ -351,29 +351,104 @@
                 });
         }
 
-        // Fungsi untuk menambahkan ke keranjang
-        function addToCart(id) {
-            // Contoh implementasi AJAX untuk menambah ke keranjang
-            fetch('app/controllers/KeranjangController.php?aksi=tambah', {
+        function updateCartCount() {
+            const cartCount = document.getElementById('cart-count');
+            if (cartCount) {
+                // Ambil jumlah item terbaru dari server
+                fetch('index.php?page=cart_action&aksi=get')
+                    .then(res => res.json())
+                    .then(data => {
+                        cartCount.textContent = data.count;
+                    });
+            }
+        }
+
+        // // Fungsi untuk menambahkan ke keranjang
+        // function addToCart(id) {
+        //     fetch('index.php?page=cart_action&aksi=tambah', {
+        //             method: 'POST',
+        //             headers: {
+        //                 'Content-Type': 'application/x-www-form-urlencoded',
+        //             },
+        //             body: `id_produk=${id}&qty=1`
+        //         })
+        //         .then(res => {
+        //             if (!res.ok) {
+        //                 throw new Error('Network response was not ok');
+        //             }
+        //             return res.json();
+        //         })
+        //         .then(data => {
+        //             if (data.success) {
+        //                 Swal.fire('Sukses', 'Produk berhasil ditambahkan ke keranjang', 'success');
+        //                 updateCartCount();
+        //             } else {
+        //                 Swal.fire('Error', data.message || 'Gagal menambahkan ke keranjang', 'error');
+        //             }
+        //         })
+        //         .catch(error => {
+        //             console.error('Error:', error);
+        //             Swal.fire('Error', 'Terjadi kesalahan saat menambahkan ke keranjang', 'error');
+        //         });
+        // }
+        // Ganti fungsi addToCart() dengan ini:
+        function showAddToCartModal(id) {
+            Swal.fire({
+                title: 'Masukkan Jumlah',
+                html: `
+            <div class="mb-3">
+                <input type="number" id="quantity-input" class="form-control" 
+                       value="1" min="1" max="100" required>
+            </div>
+        `,
+                showCancelButton: true,
+                confirmButtonText: 'Tambah ke Keranjang',
+                cancelButtonText: 'Batal',
+                focusConfirm: false,
+                preConfirm: () => {
+                    const quantity = document.getElementById('quantity-input').value;
+                    if (!quantity || quantity < 1) {
+                        Swal.showValidationMessage('Masukkan jumlah yang valid');
+                        return false;
+                    }
+                    return {
+                        quantity: quantity
+                    };
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    addToCart(id, result.value.quantity);
+                }
+            });
+        }
+
+        // Fungsi addToCart yang diperbarui
+        function addToCart(id, quantity) {
+            fetch('index.php?page=cart_action&aksi=tambah', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: `id_produk=${id}&qty=1`
+                    body: `id_produk=${id}&qty=${quantity}`
                 })
-                .then(res => res.json())
+                .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        Swal.fire('Sukses', 'Produk berhasil ditambahkan ke keranjang', 'success');
-                        // Update counter keranjang jika ada
-                        if (typeof updateCartCount === 'function') {
-                            updateCartCount();
-                        }
+                        Swal.fire('Sukses', data.message, 'success');
+                        updateCartCount();
                     } else {
-                        Swal.fire('Error', data.message || 'Gagal menambahkan ke keranjang', 'error');
+                        Swal.fire('Error', data.message, 'error');
                     }
                 });
         }
+
+        // Update event listener untuk tombol beli
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('btn-cart') || e.target.closest('.btn-cart')) {
+                const id = e.target.dataset.id || e.target.closest('.btn-cart').dataset.id;
+                showAddToCartModal(id);
+            }
+        });
 
         // Helper function untuk format number
         function number_format(number, decimals, decPoint, thousandsSep) {
