@@ -21,7 +21,7 @@ include base_path('app/views/layouts/header.php');
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container">
         <a class="navbar-brand" href="<?= base_url('index.php?page=home'); ?>">
-            <img src="<?= base_url('assets/img/grocery.gif') ?>" alt="imageicon" class="rounded me-2" width="40" height="40"> Toko Serba 35
+            <img src="<?= base_url('assets/img/grocery.gif') ?>" alt="imageicon" class="rounded me-2" width="40" height="40"> Toko Penjualan Barang
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
@@ -35,16 +35,10 @@ include base_path('app/views/layouts/header.php');
                     </span>
                 </a>
                 <li class="nav-item">
-                    <a class="nav-link <?= ($_GET['page'] ?? '') === 'home' ? 'active' : '' ?>" href="<?= base_url('index.php?page=home'); ?>">Beranda</a>
+                    <a class="nav-link <?= ($_GET['page'] ?? '') === 'home' ? 'active' : '' ?>" href="<?= base_url('index.php?page=pelanggan/dashboard'); ?>">Beranda</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link <?= ($_GET['page'] ?? '') === 'data_product_c' ? 'active' : '' ?>" href="<?= base_url('index.php?page=data_product_c'); ?>">Data Produk</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link <?= ($_GET['page'] ?? '') === 'order_c' ? 'active' : '' ?>" href="<?= base_url('index.php?page=order_c'); ?>">Order</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link <?= ($_GET['page'] ?? '') === 'riwayat_c' ? 'active' : '' ?>" href="<?= base_url('index.php?page=riwayat_c'); ?>">Riwayat</a>
+                    <a class="nav-link <?= ($_GET['page'] ?? '') === 'data_product_c' ? 'active' : '' ?>" href="<?= base_url('index.php?page=pelanggan/data_product'); ?>">Produk</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="<?= base_url('index.php?page=logout'); ?>">Logout</a>

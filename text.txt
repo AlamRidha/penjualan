@@ -193,3 +193,80 @@ $(document).ready(function() {
     });
 });
 </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style>
+    .card img {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+    }
+</style>
+
+
+<div class="container mt-4">
+    <h3 class="mb-4">Daftar Produk</h3>
+    <div class="row" id="produk-grid">
+        <!-- Data produk akan dimuat di sini lewat AJAX -->
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        fetch('app/controllers/ProdukController.php?aksi=list&mode=raw')
+            .then(res => res.json())
+            .then(data => {
+                const container = document.getElementById("produk-grid");
+                container.innerHTML = '';
+
+                data.data.forEach(item => {
+                    const produkCard = `
+                    <div class="col-md-3 mb-4">
+                        <div class="card h-100">
+                            ${item.foto_produk ? `<img src="${item.foto_produk}" class="card-img-top" alt="${item.nama_produk}">` : ''}
+                            <div class="card-body">
+                                <h5 class="card-title">${item.nama_produk}</h5>
+                                <p class="card-text">${item.deskripsi_produk.substring(0, 60)}...</p>
+                                <p class="card-text text-success fw-bold">${item.harga_produk}</p>
+                                <p class="card-text">Stok: ${item.stok_produk}</p>
+                                <button class="btn btn-sm btn-primary btn-detail" data-id="${item.id_produk}">Lihat Detail</button>
+                                <button class="btn btn-sm btn-success btn-cart" data-id="${item.id_produk}">+ Keranjang</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                    container.innerHTML += produkCard;
+                });
+            });
+    });
+
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-detail')) {
+            const id = e.target.getAttribute('data-id');
+            // Panggil modal atau halaman detail
+            alert('Lihat detail untuk produk ID: ' + id);
+        }
+
+        if (e.target.classList.contains('btn-cart')) {
+            const id = e.target.getAttribute('data-id');
+            // Kirim ke keranjang (panggil AJAX simpan session cart)
+            alert('Tambah ke keranjang ID: ' + id);
+        }
+    });
+</script>

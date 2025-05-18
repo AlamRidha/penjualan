@@ -56,6 +56,15 @@ switch ($page) {
         (new AuthController())->loginPelanggan($_POST['email'], $_POST['password']);
         break;
 
+    case 'pelanggan/dashboard':
+        include base_path('app/views/pelanggan/dashboard.php');
+        break;
+
+    // Data Produk
+    case 'pelanggan/data_product':
+        include base_path('app/views/pelanggan/data_produk.php');
+        break;
+
     case 'register_pelanggan':
         include base_path('app/views/pelanggan/register.php');
         break;

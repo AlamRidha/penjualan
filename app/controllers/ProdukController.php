@@ -201,6 +201,80 @@ function listProduk($conn)
 {
     header('Content-Type: application/json');
 
+    // Mode raw untuk tampilan grid
+    // Mode raw untuk tampilan grid
+    if (isset($_GET['mode']) && $_GET['mode'] === 'raw') {
+        $query = "SELECT * FROM produk";
+        $whereClauses = [];
+
+        // Filter pencarian
+        if (isset($_GET['search']) && !empty($_GET['search'])) {
+            $search = $conn->real_escape_string($_GET['search']);
+            $whereClauses[] = "(nama_produk LIKE '%$search%' OR deskripsi_produk LIKE '%$search%')";
+        }
+
+        // Filter harga
+        if (isset($_GET['price_filter']) && !empty($_GET['price_filter'])) {
+            $priceFilter = $conn->real_escape_string($_GET['price_filter']);
+
+            if ($priceFilter === '0-50000') {
+                $whereClauses[] = "harga_produk BETWEEN 0 AND 50000";
+            } elseif ($priceFilter === '50000-100000') {
+                $whereClauses[] = "harga_produk BETWEEN 50000 AND 100000";
+            } elseif ($priceFilter === '100000-200000') {
+                $whereClauses[] = "harga_produk BETWEEN 100000 AND 200000";
+            } elseif ($priceFilter === '200000-') {
+                $whereClauses[] = "harga_produk > 200000";
+            }
+        }
+
+        // Gabungkan where clauses jika ada
+        if (!empty($whereClauses)) {
+            $query .= " WHERE " . implode(" AND ", $whereClauses);
+        }
+
+        // Tambahkan pagination
+        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $itemsPerPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 8;
+        $offset = ($page - 1) * $itemsPerPage;
+        $query .= " LIMIT $offset, $itemsPerPage";
+
+        $result = $conn->query($query);
+        $data = [];
+
+        while ($row = $result->fetch_assoc()) {
+            $data[] = [
+                'id_produk' => $row['id_produk'],
+                'nama_produk' => htmlspecialchars($row['nama_produk']),
+                'deskripsi_produk' => htmlspecialchars($row['deskripsi_produk']),
+                'harga_produk' => "Rp" . number_format($row['harga_produk'], 0, ',', '.'),
+                'stok_produk' => $row['stok_produk'],
+                'foto_produk' => $row['foto_produk'] ?: null,
+                'deskripsi_singkat' => mb_substr($row['deskripsi_produk'], 0, 60) . '...'
+            ];
+        }
+
+        // Hitung total produk untuk pagination (dengan filter yang sama)
+        $totalQuery = "SELECT COUNT(*) as total FROM produk";
+        if (!empty($whereClauses)) {
+            $totalQuery .= " WHERE " . implode(" AND ", $whereClauses);
+        }
+        $totalResult = $conn->query($totalQuery);
+        $total = $totalResult->fetch_assoc()['total'];
+
+        echo json_encode([
+            'success' => true,
+            'data' => $data,
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $itemsPerPage,
+            'total_pages' => ceil($total / $itemsPerPage)
+        ]);
+        exit;
+    }
+
+    // Datatable
+
     $columns = ['id_produk', 'nama_produk', 'deskripsi_produk', 'harga_produk', 'stok_produk'];
     $limit = isset($_GET['length']) ? intval($_GET['length']) : 10;
     $start = isset($_GET['start']) ? intval($_GET['start']) : 0;

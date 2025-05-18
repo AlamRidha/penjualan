@@ -12,13 +12,12 @@ unset($_SESSION['error']);
 
 <head>
     <meta charset="UTF-8">
-    <title>Login Admin - Toko Penjualan Barang</title>
+    <title>Login Pelanggan - Toko Penjualan Barang</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- SweetAlert -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- Style tambahan -->
     <style>
         body {
             background: linear-gradient(to right, #36d1dc, #5b86e5);
@@ -51,10 +50,10 @@ unset($_SESSION['error']);
         <?php if ($error): ?>
             <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
-        <form action="index.php?page=login_customer_process" method="POST">
+        <form action="index.php?page=login_pelanggan_process" method="POST">
             <div class="mb-3">
-                <label for="username" class="form-label">Username</label>
-                <input type="text" name="username" class="form-control" required autofocus>
+                <label for="email" class="form-label">Email</label>
+                <input type="email" name="email" class="form-control" required autofocus>
             </div>
             <div class="mb-3">
                 <label for="password" class="form-label">Password</label>

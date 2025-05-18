@@ -29,9 +29,8 @@ class AuthController
     {
         $email = $_POST['email'] ?? '';
         $password = $_POST['password'] ?? '';
-
         if ($this->auth->loginPelanggan($email, $password)) {
-            header("Location: ../pelanggan/beranda.php");
+            header("Location:" . base_url('index.php?page=pelanggan/dashboard'));
             exit;
         } else {
             $this->redirectWithError('../pelanggan/login.php', 'Email atau Password pelanggan salah!');
