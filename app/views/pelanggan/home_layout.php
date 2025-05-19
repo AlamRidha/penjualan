@@ -40,8 +40,11 @@ include base_path('app/views/layouts/header.php');
                 <li class="nav-item">
                     <a class="nav-link <?= ($_GET['page'] ?? '') === 'data_product_c' ? 'active' : '' ?>" href="<?= base_url('index.php?page=pelanggan/data_product'); ?>">Produk</a>
                 </li>
+                <li>
+                    <a class="nav-link <?= ($_GET['page'] ?? '') === 'riwayat' ? 'active' : '' ?>" href="<?= base_url('index.php?page=pelanggan/riwayat'); ?>">Riwayat</a>
+                </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="<?= base_url('index.php?page=logout'); ?>">Logout</a>
+                    <a class="nav-link" href="<?= base_url('index.php?page=pelanggan/logout'); ?>">Logout</a>
                 </li>
             </ul>
         </div>

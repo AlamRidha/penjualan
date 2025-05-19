@@ -143,91 +143,174 @@ function addToCart($conn)
 // Hapus item dari keranjang
 function removeFromCart()
 {
-    $productId = $_GET['id'] ?? 0;
+    header('Content-Type: application/json');
 
-    if (isset($_SESSION['cart'][$productId])) {
+    try {
+        if (empty($_GET['id'])) {
+            throw new Exception('ID Produk tidak valid');
+        }
+
+        $productId = (int)$_GET['id'];
+
+        if (!isset($_SESSION['cart'][$productId])) {
+            throw new Exception('Produk tidak ada di keranjang');
+        }
+
         unset($_SESSION['cart'][$productId]);
-        echo json_encode(['success' => true, 'message' => 'Produk dihapus dari keranjang']);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Produk tidak ditemukan di keranjang']);
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Produk dihapus dari keranjang',
+            'count' => array_sum($_SESSION['cart'] ?? [])
+        ]);
+
+        exit; // Pastikan tidak ada output lain
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'message' => $e->getMessage()
+        ]);
+        exit;
     }
 }
 
 // Update jumlah item
 function updateCart($conn)
 {
-    $productId = $_POST['id_produk'] ?? 0;
-    $quantity = $_POST['qty'] ?? 1;
+    // Set header JSON di awal
+    header('Content-Type: application/json');
 
-    // Validasi input
-    if ($productId <= 0 || $quantity <= 0) {
-        echo json_encode(['success' => false, 'message' => 'Input tidak valid']);
-        return;
-    }
+    try {
+        $productId = $_POST['id_produk'] ?? 0;
+        $quantity = $_POST['qty'] ?? 1;
 
-    // Cek stok produk
-    $product = getProduct($conn, $productId);
-    if (!$product) {
-        echo json_encode(['success' => false, 'message' => 'Produk tidak ditemukan']);
-        return;
-    }
+        // Validasi input
+        if ($productId <= 0 || $quantity <= 0) {
+            throw new Exception('Input tidak valid');
+        }
 
-    // Cek stok cukup
-    if ($product['stok_produk'] < $quantity) {
-        echo json_encode(['success' => false, 'message' => 'Stok tidak mencukupi']);
-        return;
-    }
+        // Mulai transaksi untuk konsistensi data
+        $conn->begin_transaction();
 
-    // Update keranjang
-    if (isset($_SESSION['cart'][$productId])) {
+        // Dapatkan produk dengan lock untuk menghindari race condition
+        $stmt = $conn->prepare("SELECT * FROM produk WHERE id_produk = ? FOR UPDATE");
+        $stmt->bind_param("i", $productId);
+        $stmt->execute();
+        $product = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$product) {
+            throw new Exception('Produk tidak ditemukan');
+        }
+
+        // Validasi stok
+        if ($product['stok_produk'] < $quantity) {
+            throw new Exception('Stok tidak mencukupi');
+        }
+
+        // Update keranjang
+        if (!isset($_SESSION['cart'][$productId])) {
+            throw new Exception('Produk tidak ada di keranjang');
+        }
+
         $_SESSION['cart'][$productId] = $quantity;
-        echo json_encode(['success' => true, 'message' => 'Keranjang diperbarui']);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Produk tidak ditemukan di keranjang']);
+        $conn->commit();
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Keranjang diperbarui',
+            'cart' => getCart($conn) // Kirim data keranjang terbaru
+        ]);
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode([
+            'success' => false,
+            'message' => $e->getMessage()
+        ]);
     }
+
+    exit; // Pastikan tidak ada output lain
 }
+
 
 // Proses checkout
 function checkout($conn)
 {
-    // Validasi data
-    $required = ['nama', 'telepon', 'alamat', 'id_ongkir', 'bank'];
-    foreach ($required as $field) {
-        if (empty($_POST[$field])) {
-            echo json_encode(['success' => false, 'message' => 'Semua field harus diisi']);
+    // Pastikan semua output selalu dalam format JSON
+    try {
+        // Validasi data
+        $required = ['nama', 'telepon', 'alamat', 'id_ongkir', 'bank'];
+        foreach ($required as $field) {
+            if (empty($_POST[$field])) {
+                echo json_encode(['success' => false, 'message' => 'Semua field harus diisi']);
+                return;
+            }
+        }
+
+        // Validasi file upload
+        if (!isset($_FILES['bukti']) || $_FILES['bukti']['error'] != UPLOAD_ERR_OK) {
+            echo json_encode(['success' => false, 'message' => 'Bukti pembayaran harus diupload']);
             return;
         }
-    }
 
-    // Validasi file upload
-    if (!isset($_FILES['bukti']) || $_FILES['bukti']['error'] != UPLOAD_ERR_OK) {
-        echo json_encode(['success' => false, 'message' => 'Bukti pembayaran harus diupload']);
-        return;
-    }
+        // Validasi total pembayaran
+        if (empty($_POST['total_pembelian'])) {
+            echo json_encode(['success' => false, 'message' => 'Total pembelian tidak valid']);
+            return;
+        }
 
-    // Mulai transaksi
-    $conn->begin_transaction();
+        // Debug: log what we're receiving
+        error_log("Checkout data: " . json_encode($_POST));
+        error_log("File data: " . json_encode($_FILES));
 
-    try {
+        // Validasi folder upload
+        $uploadDir = '../../uploads/bukti/';
+        if (!is_dir($uploadDir) && !mkdir($uploadDir, 0777, true)) {
+            throw new Exception('Tidak dapat membuat direktori upload');
+        }
+
+        if (!is_writable($uploadDir)) {
+            throw new Exception('Direktori upload tidak dapat ditulis');
+        }
+
+        // Mulai transaksi
+        $conn->begin_transaction();
+
         // 1. Simpan data pembelian
         $stmt = $conn->prepare("INSERT INTO pembelian (
             id_pelanggan, id_ongkir, total_pembelian, alamat_pengiriman, nama_kota, tarif
         ) VALUES (?, ?, ?, ?, ?, ?)");
 
         // Dapatkan data ongkir
-        $ongkir = $conn->query("SELECT nama_kota, tarif FROM ongkir WHERE id_ongkir = " . $_POST['id_ongkir'])->fetch_assoc();
+        $ongkirQuery = $conn->prepare("SELECT nama_kota, tarif FROM ongkir WHERE id_ongkir = ?");
+        $ongkirQuery->bind_param("i", $_POST['id_ongkir']);
+        $ongkirQuery->execute();
+        $ongkirResult = $ongkirQuery->get_result();
 
-        $pelangganId = $_SESSION['user']['id'] ?? 0;
+        if ($ongkirResult->num_rows === 0) {
+            throw new Exception('Data ongkir tidak ditemukan');
+        }
+
+        $ongkir = $ongkirResult->fetch_assoc();
+        $ongkirQuery->close();
+
+        $pelangganId = $_SESSION['pelanggan']['id_pelanggan'] ?? 0;
+        $totalPembelian = (float)$_POST['total_pembelian'];
+
         $stmt->bind_param(
             "iidssd",
             $pelangganId,
             $_POST['id_ongkir'],
-            $_POST['total_pembelian'],
+            $totalPembelian,
             $_POST['alamat'],
             $ongkir['nama_kota'],
             $ongkir['tarif']
         );
-        $stmt->execute();
+
+        if (!$stmt->execute()) {
+            throw new Exception('Gagal menyimpan data pembelian: ' . $stmt->error);
+        }
+
         $pembelianId = $conn->insert_id;
         $stmt->close();
 
@@ -238,6 +321,10 @@ function checkout($conn)
 
         foreach ($_SESSION['cart'] as $productId => $quantity) {
             $product = getProduct($conn, $productId);
+            if (!$product) {
+                throw new Exception('Produk id ' . $productId . ' tidak ditemukan');
+            }
+
             $subtotal = $product['harga_produk'] * $quantity;
 
             $stmt->bind_param(
@@ -249,25 +336,41 @@ function checkout($conn)
                 $product['harga_produk'],
                 $subtotal
             );
-            $stmt->execute();
+
+            if (!$stmt->execute()) {
+                throw new Exception('Gagal menyimpan item pembelian: ' . $stmt->error);
+            }
 
             // Update stok produk
-            $conn->query("UPDATE produk SET stok_produk = stok_produk - $quantity WHERE id_produk = $productId");
+            $updateStok = $conn->prepare("UPDATE produk SET stok_produk = stok_produk - ? WHERE id_produk = ?");
+            $updateStok->bind_param("ii", $quantity, $productId);
+
+            if (!$updateStok->execute()) {
+                throw new Exception('Gagal memperbarui stok produk: ' . $updateStok->error);
+            }
+
+            $updateStok->close();
         }
         $stmt->close();
 
         // 3. Simpan bukti pembayaran
-        $uploadDir = 'uploads/bukti_pembayaran/';
-        if (!file_exists($uploadDir)) {
-            mkdir($uploadDir, 0777, true);
+        // Validasi ekstensi file
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf'];
+        $fileExtension = strtolower(pathinfo($_FILES['bukti']['name'], PATHINFO_EXTENSION));
+
+        if (!in_array($fileExtension, $allowedExtensions)) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Format file tidak didukung. Gunakan JPG, PNG, atau PDF'
+            ]);
+            return;
         }
 
-        $ext = pathinfo($_FILES['bukti']['name'], PATHINFO_EXTENSION);
-        $filename = 'pembayaran_' . $pembelianId . '_' . time() . '.' . $ext;
-        $targetFile = $uploadDir . $filename;
+        $filename = 'bukti_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $fileExtension;
+        $targetPath = $uploadDir . $filename;
 
-        if (!move_uploaded_file($_FILES['bukti']['tmp_name'], $targetFile)) {
-            throw new Exception('Gagal mengupload bukti pembayaran');
+        if (!move_uploaded_file($_FILES['bukti']['tmp_name'], $targetPath)) {
+            throw new Exception('Gagal menyimpan bukti pembayaran. Error code: ' . $_FILES['bukti']['error']);
         }
 
         // 4. Simpan data pembayaran
@@ -280,10 +383,14 @@ function checkout($conn)
             $pembelianId,
             $_POST['nama'],
             $_POST['bank'],
-            $_POST['total_pembelian'],
+            $totalPembelian,
             $filename
         );
-        $stmt->execute();
+
+        if (!$stmt->execute()) {
+            throw new Exception('Gagal menyimpan data pembayaran: ' . $stmt->error);
+        }
+
         $stmt->close();
 
         // 5. Kosongkan keranjang
@@ -298,10 +405,17 @@ function checkout($conn)
             'id_pembelian' => $pembelianId
         ]);
     } catch (Exception $e) {
+        // Rollback transaksi jika ada kesalahan
         $conn->rollback();
+
+        // hapus file jika sudah diupload
+        if (isset($targetPath) && file_exists($targetPath)) {
+            unlink($targetPath);
+        }
+
         echo json_encode([
             'success' => false,
-            'message' => 'Gagal memproses pesanan: ' . $e->getMessage()
+            'message' => 'Error: ' . $e->getMessage()
         ]);
     }
 }

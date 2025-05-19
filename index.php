@@ -65,6 +65,11 @@ switch ($page) {
         include base_path('app/views/pelanggan/data_produk.php');
         break;
 
+    // Data Riwayat
+    case 'pelanggan/riwayat':
+        include base_path('app/views/pelanggan/riwayat.php');
+        break;
+
     // Data Keranjang
     case 'pelanggan/cart':
         // include base_path('app/views/pelanggan/cart.php');
@@ -86,6 +91,10 @@ switch ($page) {
 
     case 'register_pelanggan_process':
         (new AuthController())->registerPelanggan($_POST);
+        break;
+
+    case 'pelanggan/logout':
+        (new AuthController())->logoutPelanggan();
         break;
 
     case 'logout':

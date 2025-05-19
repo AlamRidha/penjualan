@@ -425,3 +425,527 @@ $(document).ready(function() {
         </div>
     </div>
 </div>
+
+
+
+
+
+
+
+
+function checkout($conn)
+{
+    // Validasi data
+    $required = ['nama', 'telepon', 'alamat', 'id_ongkir', 'bank'];
+    foreach ($required as $field) {
+        if (empty($_POST[$field])) {
+            echo json_encode(['success' => false, 'message' => 'Semua field harus diisi']);
+            return;
+        }
+    }
+
+    // Validasi file upload
+    if (!isset($_FILES['bukti']) || $_FILES['bukti']['error'] != UPLOAD_ERR_OK) {
+        echo json_encode(['success' => false, 'message' => 'Bukti pembayaran harus diupload']);
+        return;
+    }
+
+    // Mulai transaksi
+    $conn->begin_transaction();
+
+    try {
+        // 1. Simpan data pembelian
+        $stmt = $conn->prepare("INSERT INTO pembelian (
+            id_pelanggan, id_ongkir, total_pembelian, alamat_pengiriman, nama_kota, tarif
+        ) VALUES (?, ?, ?, ?, ?, ?)");
+
+        // Dapatkan data ongkir
+        $ongkir = $conn->query("SELECT nama_kota, tarif FROM ongkir WHERE id_ongkir = " . $_POST['id_ongkir'])->fetch_assoc();
+
+        $pelangganId = $_SESSION['user']['id'] ?? 0;
+        $stmt->bind_param(
+            "iidssd",
+            $pelangganId,
+            $_POST['id_ongkir'],
+            $_POST['total_pembelian'],
+            $_POST['alamat'],
+            $ongkir['nama_kota'],
+            $ongkir['tarif']
+        );
+        $stmt->execute();
+        $pembelianId = $conn->insert_id;
+        $stmt->close();
+
+        // 2. Simpan item pembelian
+        $stmt = $conn->prepare("INSERT INTO pembelian_produk (
+            id_pembelian, id_produk, jumlah, nama_produk, harga, sub_harga
+        ) VALUES (?, ?, ?, ?, ?, ?)");
+
+        foreach ($_SESSION['cart'] as $productId => $quantity) {
+            $product = getProduct($conn, $productId);
+            $subtotal = $product['harga_produk'] * $quantity;
+
+            $stmt->bind_param(
+                "iiisdd",
+                $pembelianId,
+                $productId,
+                $quantity,
+                $product['nama_produk'],
+                $product['harga_produk'],
+                $subtotal
+            );
+            $stmt->execute();
+
+            // Update stok produk
+            $conn->query("UPDATE produk SET stok_produk = stok_produk - $quantity WHERE id_produk = $productId");
+        }
+        $stmt->close();
+
+        // 3. Simpan bukti pembayaran
+        $uploadDir = 'uploads/bukti/';
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        $ext = pathinfo($_FILES['bukti']['name'], PATHINFO_EXTENSION);
+        $filename = 'pembayaran_' . $pembelianId . '_' . time() . '.' . $ext;
+        $targetFile = $uploadDir . $filename;
+
+        if (!move_uploaded_file($_FILES['bukti']['tmp_name'], $targetFile)) {
+            throw new Exception('Gagal mengupload bukti pembayaran');
+        }
+
+        // 4. Simpan data pembayaran
+        $stmt = $conn->prepare("INSERT INTO pembayaran (
+            id_pembelian, nama, bank, jumlah, bukti_pembayaran
+        ) VALUES (?, ?, ?, ?, ?)");
+
+        $stmt->bind_param(
+            "issds",
+            $pembelianId,
+            $_POST['nama'],
+            $_POST['bank'],
+            $_POST['total_pembelian'],
+            $filename
+        );
+        $stmt->execute();
+        $stmt->close();
+
+        // 5. Kosongkan keranjang
+        $_SESSION['cart'] = [];
+
+        // Commit transaksi
+        $conn->commit();
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Pesanan berhasil dibuat',
+            'id_pembelian' => $pembelianId
+        ]);
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode([
+            'success' => false,
+            'message' => 'Gagal memproses pesanan: ' . $e->getMessage()
+        ]);
+    }
+}
+
+
+
+
+ document.getElementById("checkoutForm").addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Tampilkan loading
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Memproses...';
+
+            const formData = new FormData(this);
+            // Ambil nilai total pembayaran tanpa simbol dan pemisah ribuan
+            const totalPembayaran = document.getElementById('summary-total').textContent.replace('Rp', '').replace(/\./g, '');
+            formData.append('total_pembelian', totalPembayaran);
+
+            fetch('index.php?page=cart_action&aksi=checkout', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    // Check if the response is JSON
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json().then(data => {
+                            if (!response.ok) {
+                                throw new Error(data.message || 'Terjadi kesalahan pada server');
+                            }
+                            return data;
+                        });
+                    } else {
+                        // If not JSON, get the text and show detailed error
+                        return response.text().then(text => {
+                            console.error("Server returned non-JSON response:", text);
+                            // Display the actual server response in the alert for debugging
+                            Swal.fire({
+                                title: 'Debug: Server Response',
+                                html: `<p>Content-Type: ${contentType || 'none'}</p>
+                                  <p>Response status: ${response.status}</p>
+                                  <div style="max-height: 300px; overflow-y: auto; text-align: left; background: #f5f5f5; padding: 10px; margin-top: 10px;">
+                                    <pre>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+                                  </div>`,
+                                width: 800,
+                                confirmButtonText: 'OK'
+                            });
+                            throw new Error('Server mengembalikan respons yang tidak valid');
+                        });
+                    }
+                })
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = 'index.php?page=riwayat&id=' + data.id_pembelian;
+                    } else {
+                        Swal.fire('Error', data.message || 'Gagal memproses pesanan', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire('Error', 'Terjadi kesalahan saat memproses pesanan: ' + error.message, 'error');
+                })
+                .finally(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Proses Pesanan';
+                });
+        });
+
+
+
+
+//palign lama
+// Proses checkout
+// function checkout($conn)
+// {
+//     // Validasi data
+//     $required = ['nama', 'telepon', 'alamat', 'id_ongkir', 'bank'];
+//     foreach ($required as $field) {
+//         if (empty($_POST[$field])) {
+//             echo json_encode(['success' => false, 'message' => 'Semua field harus diisi']);
+//             return;
+//         }
+//     }
+
+//     // Validasi file upload
+//     if (!isset($_FILES['bukti']) || $_FILES['bukti']['error'] != UPLOAD_ERR_OK) {
+//         echo json_encode(['success' => false, 'message' => 'Bukti pembayaran harus diupload']);
+//         return;
+//     }
+
+//     // Mulai transaksi
+//     $conn->begin_transaction();
+
+//     try {
+//         // 1. Simpan data pembelian
+//         $stmt = $conn->prepare("INSERT INTO pembelian (
+//             id_pelanggan, id_ongkir, total_pembelian, alamat_pengiriman, nama_kota, tarif
+//         ) VALUES (?, ?, ?, ?, ?, ?)");
+
+//         // Dapatkan data ongkir
+//         $ongkir = $conn->query("SELECT nama_kota, tarif FROM ongkir WHERE id_ongkir = " . $_POST['id_ongkir'])->fetch_assoc();
+
+//         $pelangganId = $_SESSION['pelanggan']['id'] ?? 0;
+//         $stmt->bind_param(
+//             "iidssd",
+//             $pelangganId,
+//             $_POST['id_ongkir'],
+//             $_POST['total_pembelian'],
+//             $_POST['alamat'],
+//             $ongkir['nama_kota'],
+//             $ongkir['tarif']
+//         );
+//         $stmt->execute();
+//         $pembelianId = $conn->insert_id;
+//         $stmt->close();
+
+//         // 2. Simpan item pembelian
+//         $stmt = $conn->prepare("INSERT INTO pembelian_produk (
+//             id_pembelian, id_produk, jumlah, nama_produk, harga, sub_harga
+//         ) VALUES (?, ?, ?, ?, ?, ?)");
+
+//         foreach ($_SESSION['cart'] as $productId => $quantity) {
+//             $product = getProduct($conn, $productId);
+//             $subtotal = $product['harga_produk'] * $quantity;
+
+//             $stmt->bind_param(
+//                 "iiisdd",
+//                 $pembelianId,
+//                 $productId,
+//                 $quantity,
+//                 $product['nama_produk'],
+//                 $product['harga_produk'],
+//                 $subtotal
+//             );
+//             $stmt->execute();
+
+//             // Update stok produk
+//             $conn->query("UPDATE produk SET stok_produk = stok_produk - $quantity WHERE id_produk = $productId");
+//         }
+//         $stmt->close();
+
+//         // 3. Simpan bukti pembayaran
+//         $uploadDir = '../../uploads/bukti/';
+//         if (!file_exists($uploadDir)) {
+//             mkdir($uploadDir, 0777, true);
+//         }
+
+//         // Validasi ekstensi file
+//         $allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf'];
+//         $fileExtension = strtolower(pathinfo($_FILES['bukti']['name'], PATHINFO_EXTENSION));
+
+//         if (!in_array($fileExtension, $allowedExtensions)) {
+//             echo json_encode([
+//                 'success' => false,
+//                 'message' => 'Format file tidak didukung. Gunakan JPG, PNG, atau PDF'
+//             ]);
+//             return;
+//         }
+
+//         $filename = 'bukti_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $fileExtension;
+//         $targetPath = $uploadDir . $filename;
+
+//         if (!move_uploaded_file($_FILES['bukti']['tmp_name'], $targetPath)) {
+//             echo json_encode([
+//                 'success' => false,
+//                 'message' => 'Gagal menyimpan bukti pembayaran'
+//             ]);
+//             return;
+//         }
+
+//         // 4. Simpan data pembayaran
+//         $stmt = $conn->prepare("INSERT INTO pembayaran (
+//             id_pembelian, nama, bank, jumlah, bukti_pembayaran
+//         ) VALUES (?, ?, ?, ?, ?)");
+
+//         $stmt->bind_param(
+//             "issds",
+//             $pembelianId,
+//             $_POST['nama'],
+//             $_POST['bank'],
+//             $_POST['total_pembelian'],
+//             $filename
+//         );
+//         $stmt->execute();
+//         $stmt->close();
+
+//         // 5. Kosongkan keranjang
+//         $_SESSION['cart'] = [];
+
+//         // Commit transaksi
+//         $conn->commit();
+
+//         echo json_encode([
+//             'success' => true,
+//             'message' => 'Pesanan berhasil dibuat',
+//             'id_pembelian' => $pembelianId
+//         ]);
+//     } catch (Exception $e) {
+//         // Hapus file jika gagal
+//         if (file_exists($targetPath)) {
+//             unlink($targetPath);
+//         }
+
+//         $conn->rollback();
+
+//         echo json_encode([
+//             'success' => false,
+//             'message' => 'Gagal memproses pesanan: ' . $e->getMessage()
+//         ]);
+//     }
+// }
+
+
+
+//Script lama:
+<!-- <script>
+    document.addEventListener("DOMContentLoaded", function() {
+
+        // Hitung ongkir saat kota berubah
+        document.getElementById('kota').addEventListener('change', function() {
+            const tarif = this.options[this.selectedIndex].dataset.tarif || 0;
+            const totalProduk = <?= $cart['total'] ?>;
+            const totalPembayaran = totalProduk + parseFloat(tarif);
+
+            document.getElementById('summary-shipping').textContent = 'Rp' + parseFloat(tarif).toLocaleString('id-ID');
+            document.getElementById('summary-total').textContent = 'Rp' + totalPembayaran.toLocaleString('id-ID');
+        });
+
+        // Proses checkout
+        document.getElementById("checkoutForm").addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Tampilkan loading
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Memproses...';
+
+            const formData = new FormData(this);
+            formData.append('total_pembelian', document.getElementById('summary-total').textContent.replace('Rp', '').replace(/\./g, ''));
+
+            fetch('index.php?page=cart_action&aksi=checkout', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            throw new Error(text || 'Network response was not ok');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = 'index.php?page=riwayat&id=' + data.id_pembelian;
+                    } else {
+                        Swal.fire('Error', data.message || 'Gagal memproses pesanan', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire('Error', 'Terjadi kesalahan saat memproses pesanan: ' + error.message, 'error');
+                })
+                .finally(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Proses Pesanan';
+                });
+        });
+    });
+
+    // Update quantity
+    document.querySelectorAll('.quantity-input').forEach(input => {
+        input.addEventListener('change', function() {
+            const productId = this.dataset.id;
+            const quantity = this.value;
+
+            fetch('index.php?page=cart_action&aksi=update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `id_produk=${productId}&qty=${quantity}`
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.message);
+                    }
+                });
+        });
+    });
+
+    document.querySelectorAll('.btn-plus').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const productId = this.dataset.id;
+            const quantityDisplay = this.parentElement.querySelector('.quantity-display');
+            const currentQty = parseInt(quantityDisplay.textContent);
+            const maxStock = parseInt(this.closest('tr').querySelector('.text-muted').textContent.replace('Stok: ', ''));
+
+            if (currentQty < maxStock) {
+                updateCartItem(productId, currentQty + 1);
+            }
+        });
+    });
+
+    // Tombol minus
+    document.querySelectorAll('.btn-minus').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const productId = this.dataset.id;
+            const quantityDisplay = this.parentElement.querySelector('.quantity-display');
+            const currentQty = parseInt(quantityDisplay.textContent);
+
+            if (currentQty > 1) {
+                updateCartItem(productId, currentQty - 1);
+            }
+        });
+    });
+
+    // Hapus item
+    document.querySelectorAll('.remove-item').forEach(btn => {
+        btn.addEventListener('click', function() {
+            Swal.fire({
+                title: 'Hapus Produk?',
+                text: "Apakah Anda yakin ingin menghapus produk ini dari keranjang?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Ya, hapus',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const productId = btn.dataset.id;
+                    fetch(`index.php?page=cart_action&aksi=hapus&id=${productId}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire({
+                                    title: 'Berhasil!',
+                                    text: 'Produk telah dihapus dari keranjang.',
+                                    icon: 'success',
+                                    timer: 1500,
+                                    showConfirmButton: false
+                                }).then(() => location.reload());
+                            } else {
+                                Swal.fire('Error', data.message, 'error');
+                            }
+                        });
+                }
+            });
+
+        });
+    });
+
+    // Fungsi update item
+    function updateCartItem(productId, quantity) {
+        fetch('index.php?page=cart_action&aksi=update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `id_produk=${productId}&qty=${quantity}`
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            });
+    }
+
+    // Checkout form
+    document.getElementById("checkoutForm").addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+
+        fetch('index.php?page=cart_action&aksi=checkout', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Redirect ke halaman konfirmasi
+                    window.location.href = `index.php?page=order_confirmation&id=${data.transaksi_id}`;
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Terjadi kesalahan saat memproses pesanan');
+            });
+    });
+</script> -->

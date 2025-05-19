@@ -146,33 +146,6 @@
             loadProducts(currentPage, currentSearch, currentPriceFilter);
         });
 
-        // Fungsi untuk memuat produk
-        // function loadProducts(page = 1, search = '') {
-        //     const container = document.getElementById("produk-grid");
-        //     container.innerHTML = `
-        //     <div class="col-12 text-center my-5">
-        //         <div class="spinner-border text-primary" role="status">
-        //             <span class="visually-hidden">Loading...</span>
-        //         </div>
-        //     </div>`;
-
-        //     const url = `app/controllers/ProdukController.php?aksi=list&mode=raw&page=${page}&per_page=${itemsPerPage}&search=${encodeURIComponent(search)}`;
-
-        //     fetch(url)
-        //         .then(res => res.json())
-        //         .then(data => {
-        //             if (data.success) {
-        //                 renderProducts(data.data);
-        //                 renderPagination(data.total_pages, page);
-        //             } else {
-        //                 container.innerHTML = `<div class="col-12 text-center text-danger">Gagal memuat produk</div>`;
-        //             }
-        //         })
-        //         .catch(error => {
-        //             console.error('Error:', error);
-        //             container.innerHTML = `<div class="col-12 text-center text-danger">Terjadi kesalahan saat memuat produk</div>`;
-        //         });
-        // }
         function loadProducts(page = 1, search = '', priceFilter = '') {
             const container = document.getElementById("produk-grid");
             container.innerHTML = `
@@ -260,25 +233,18 @@
             // Previous button
             pagination.innerHTML += `
             <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-                <a class="page-link" href="#" data-page="${currentPage - 1}">Previous</a>
-            </li>
-        `;
-
+                <a class="page-link" href="#" data-page="${currentPage - 1}">Previous</a></li>`;
             // Page numbers
             for (let i = 1; i <= totalPages; i++) {
                 pagination.innerHTML += `
                 <li class="page-item ${i === currentPage ? 'active' : ''}">
                     <a class="page-link" href="#" data-page="${i}">${i}</a>
-                </li>
-            `;
+                </li>`;
             }
-
             // Next button
             pagination.innerHTML += `
             <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-                <a class="page-link" href="#" data-page="${currentPage + 1}">Next</a>
-            </li>
-        `;
+                <a class="page-link" href="#" data-page="${currentPage + 1}">Next</a></li>`;
         }
 
         // Event listener untuk pagination
@@ -307,17 +273,17 @@
         });
 
         // Event listener untuk detail dan keranjang
-        document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('btn-detail') || e.target.closest('.btn-detail')) {
-                const id = e.target.dataset.id || e.target.closest('.btn-detail').dataset.id;
-                showProductDetail(id);
-            }
+        // document.addEventListener('click', function(e) {
+        //     if (e.target.classList.contains('btn-detail') || e.target.closest('.btn-detail')) {
+        //         const id = e.target.dataset.id || e.target.closest('.btn-detail').dataset.id;
+        //         showProductDetail(id);
+        //     }
 
-            if (e.target.classList.contains('btn-cart') || e.target.closest('.btn-cart')) {
-                const id = e.target.dataset.id || e.target.closest('.btn-cart').dataset.id;
-                addToCart(id);
-            }
-        });
+        //     if (e.target.classList.contains('btn-cart') || e.target.closest('.btn-cart')) {
+        //         const id = e.target.dataset.id || e.target.closest('.btn-cart').dataset.id;
+        //         addToCart(id);
+        //     }
+        // });
 
         // Fungsi untuk menampilkan detail produk
         function showProductDetail(id) {
@@ -363,67 +329,49 @@
             }
         }
 
-        // // Fungsi untuk menambahkan ke keranjang
-        // function addToCart(id) {
-        //     fetch('index.php?page=cart_action&aksi=tambah', {
-        //             method: 'POST',
-        //             headers: {
-        //                 'Content-Type': 'application/x-www-form-urlencoded',
-        //             },
-        //             body: `id_produk=${id}&qty=1`
-        //         })
-        //         .then(res => {
-        //             if (!res.ok) {
-        //                 throw new Error('Network response was not ok');
-        //             }
-        //             return res.json();
-        //         })
-        //         .then(data => {
-        //             if (data.success) {
-        //                 Swal.fire('Sukses', 'Produk berhasil ditambahkan ke keranjang', 'success');
-        //                 updateCartCount();
-        //             } else {
-        //                 Swal.fire('Error', data.message || 'Gagal menambahkan ke keranjang', 'error');
-        //             }
-        //         })
-        //         .catch(error => {
-        //             console.error('Error:', error);
-        //             Swal.fire('Error', 'Terjadi kesalahan saat menambahkan ke keranjang', 'error');
-        //         });
-        // }
         // Ganti fungsi addToCart() dengan ini:
         function showAddToCartModal(id) {
-            Swal.fire({
-                title: 'Masukkan Jumlah',
-                html: `
-            <div class="mb-3">
-                <input type="number" id="quantity-input" class="form-control" 
-                       value="1" min="1" max="100" required>
-            </div>
-        `,
-                showCancelButton: true,
-                confirmButtonText: 'Tambah ke Keranjang',
-                cancelButtonText: 'Batal',
-                focusConfirm: false,
-                preConfirm: () => {
-                    const quantity = document.getElementById('quantity-input').value;
-                    if (!quantity || quantity < 1) {
-                        Swal.showValidationMessage('Masukkan jumlah yang valid');
-                        return false;
-                    }
-                    return {
-                        quantity: quantity
-                    };
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    addToCart(id, result.value.quantity);
-                }
-            });
+            // Ambil info stok produk terlebih dahulu
+            fetch(`app/controllers/ProdukController.php?aksi=detail&id=${id}`)
+                .then(res => res.json())
+                .then(product => {
+                    Swal.fire({
+                        title: 'Masukkan Jumlah',
+                        html: `
+                    <div class="mb-3">
+                        <input type="number" id="quantity-input" class="form-control" 
+                               value="1" min="1" max="${product.stok_produk}" required>
+                        <small class="text-muted">Stok tersedia: ${product.stok_produk}</small>
+                    </div>
+                `,
+                        showCancelButton: true,
+                        confirmButtonText: 'Tambah ke Keranjang',
+                        cancelButtonText: 'Batal',
+                        focusConfirm: false,
+                        preConfirm: () => {
+                            const quantity = parseInt(document.getElementById('quantity-input').value);
+                            if (!quantity || quantity < 1 || quantity > product.stok_produk) {
+                                Swal.showValidationMessage(`Masukkan jumlah antara 1-${product.stok_produk}`);
+                                return false;
+                            }
+                            return {
+                                quantity: quantity
+                            };
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            addToCart(id, result.value.quantity);
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire('Error', 'Gagal memuat detail produk', 'error');
+                });
         }
 
         // Fungsi addToCart yang diperbarui
-        function addToCart(id, quantity) {
+        function addToCart(id, quantity = 1) {
             fetch('index.php?page=cart_action&aksi=tambah', {
                     method: 'POST',
                     headers: {
@@ -439,14 +387,25 @@
                     } else {
                         Swal.fire('Error', data.message, 'error');
                     }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire('Error', 'Terjadi kesalahan saat menambahkan ke keranjang', 'error');
                 });
         }
 
         // Update event listener untuk tombol beli
         document.addEventListener('click', function(e) {
+            // Untuk tombol detail
+            if (e.target.classList.contains('btn-detail') || e.target.closest('.btn-detail')) {
+                const id = e.target.dataset.id || e.target.closest('.btn-detail').dataset.id;
+                showProductDetail(id);
+            }
+
+            // Untuk tombol beli
             if (e.target.classList.contains('btn-cart') || e.target.closest('.btn-cart')) {
                 const id = e.target.dataset.id || e.target.closest('.btn-cart').dataset.id;
-                showAddToCartModal(id);
+                showAddToCartModal(id); // Panggil modal quantity
             }
         });
 

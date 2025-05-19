@@ -83,7 +83,6 @@
 </div>
 
 <!-- Checkout Modal -->
-<!-- Checkout Modal -->
 <div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -171,9 +170,9 @@
     </div>
 </div>
 
+
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-
         // Hitung ongkir saat kota berubah
         document.getElementById('kota').addEventListener('change', function() {
             const tarif = this.options[this.selectedIndex].dataset.tarif || 0;
@@ -184,159 +183,243 @@
             document.getElementById('summary-total').textContent = 'Rp' + totalPembayaran.toLocaleString('id-ID');
         });
 
-        // Proses checkout
+        // Proses checkout (tidak berubah)
         document.getElementById("checkoutForm").addEventListener('submit', function(e) {
             e.preventDefault();
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Memproses...';
 
             const formData = new FormData(this);
-            formData.append('total_pembelian', document.getElementById('summary-total').textContent.replace('Rp', '').replace(/\./g, ''));
+            const totalPembayaran = document.getElementById('summary-total').textContent.replace('Rp', '').replace(/\./g, '');
+            formData.append('total_pembelian', totalPembayaran);
 
             fetch('index.php?page=cart_action&aksi=checkout', {
                     method: 'POST',
                     body: formData
                 })
-                .then(res => res.json())
+                .then(async response => {
+                    try {
+                        const data = await response.json();
+                        if (!response.ok) throw new Error(data.message || 'Terjadi kesalahan');
+                        return data;
+                    } catch (error) {
+                        const text = await response.text();
+                        console.error("Response:", text);
+                        throw new Error('Respons tidak valid: ' + text.substring(0, 100));
+                    }
+                })
                 .then(data => {
                     if (data.success) {
-                        window.location.href = 'index.php?page=riwayat&id=' + data.id_pembelian;
+                        Swal.fire({
+                            title: 'Sukses!',
+                            text: 'Pesanan Berhasil Dibuat',
+                            icon: 'success'
+                        }).then(() => {
+                            window.location.href = 'index.php?page=pelanggan/data_product';
+                        });
                     } else {
-                        Swal.fire('Error', data.message, 'error');
+                        throw new Error(data.message || 'Gagal memproses pesanan');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    Swal.fire('Error', 'Terjadi kesalahan saat memproses pesanan', 'error');
+                    Swal.fire('Error', error.message, 'error');
+                })
+                .finally(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Proses Pesanan';
                 });
         });
-    });
 
-    // Update quantity
-    document.querySelectorAll('.quantity-input').forEach(input => {
-        input.addEventListener('change', function() {
-            const productId = this.dataset.id;
-            const quantity = this.value;
+        // Event listeners untuk tombol +/-
+        document.querySelectorAll('.btn-plus').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('tr');
+                const productId = row.querySelector('.remove-item').dataset.id;
+                const quantityDisplay = row.querySelector('.quantity-display');
+                const currentQty = parseInt(quantityDisplay.textContent);
+                const maxStock = parseInt(row.querySelector('.text-muted').textContent.replace('Stok: ', ''));
 
-            fetch('index.php?page=cart_action&aksi=update', {
+                if (currentQty < maxStock) {
+                    updateCartItem(productId, currentQty + 1);
+                } else {
+                    Swal.fire('Info', 'Jumlah tidak boleh melebihi stok', 'info');
+                }
+            });
+        });
+
+        document.querySelectorAll('.btn-minus').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('tr');
+                const productId = row.querySelector('.remove-item').dataset.id;
+                const quantityDisplay = row.querySelector('.quantity-display');
+                const currentQty = parseInt(quantityDisplay.textContent);
+
+                if (currentQty > 1) {
+                    updateCartItem(productId, currentQty - 1);
+                }
+            });
+        });
+
+        // Hapus item (tidak berubah)
+        document.querySelectorAll('.remove-item').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const productId = this.dataset.id;
+                Swal.fire({
+                    title: 'Hapus Produk?',
+                    text: "Apakah Anda yakin ingin menghapus produk ini dari keranjang?",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Ya, hapus',
+                    cancelButtonText: 'Batal'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        removeCartItem(productId);
+                    }
+                });
+            });
+        });
+
+        // Fungsi untuk update item
+        async function updateCartItem(productId, quantity) {
+            try {
+                const response = await fetch('index.php?page=cart_action&aksi=update', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
                     body: `id_produk=${productId}&qty=${quantity}`
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        alert(data.message);
-                    }
                 });
-        });
-    });
 
-    document.querySelectorAll('.btn-plus').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const productId = this.dataset.id;
-            const quantityDisplay = this.parentElement.querySelector('.quantity-display');
-            const currentQty = parseInt(quantityDisplay.textContent);
-            const maxStock = parseInt(this.closest('tr').querySelector('.text-muted').textContent.replace('Stok: ', ''));
+                const data = await parseResponse(response);
 
-            if (currentQty < maxStock) {
-                updateCartItem(productId, currentQty + 1);
-            }
-        });
-    });
-
-    // Tombol minus
-    document.querySelectorAll('.btn-minus').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const productId = this.dataset.id;
-            const quantityDisplay = this.parentElement.querySelector('.quantity-display');
-            const currentQty = parseInt(quantityDisplay.textContent);
-
-            if (currentQty > 1) {
-                updateCartItem(productId, currentQty - 1);
-            }
-        });
-    });
-
-    // Hapus item
-    document.querySelectorAll('.remove-item').forEach(btn => {
-        btn.addEventListener('click', function() {
-            Swal.fire({
-                title: 'Hapus Produk?',
-                text: "Apakah Anda yakin ingin menghapus produk ini dari keranjang?",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Ya, hapus',
-                cancelButtonText: 'Batal'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const productId = btn.dataset.id;
-                    fetch(`index.php?page=cart_action&aksi=hapus&id=${productId}`)
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.success) {
-                                Swal.fire({
-                                    title: 'Berhasil!',
-                                    text: 'Produk telah dihapus dari keranjang.',
-                                    icon: 'success',
-                                    timer: 1500,
-                                    showConfirmButton: false
-                                }).then(() => location.reload());
-                            } else {
-                                Swal.fire('Error', data.message, 'error');
-                            }
-                        });
-                }
-            });
-
-        });
-    });
-
-    // Fungsi update item
-    function updateCartItem(productId, quantity) {
-        fetch('index.php?page=cart_action&aksi=update', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `id_produk=${productId}&qty=${quantity}`
-            })
-            .then(res => res.json())
-            .then(data => {
                 if (data.success) {
-                    location.reload();
+                    // Perbarui tampilan tanpa reload
+                    // updateCartUI(data.cart);
+                    updateCartUI(data.cart, productId);
                 } else {
-                    Swal.fire('Error', data.message, 'error');
+                    throw new Error(data.message);
                 }
-            });
-    }
-
-    // Checkout form
-    document.getElementById("checkoutForm").addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        const formData = new FormData(this);
-
-        fetch('index.php?page=cart_action&aksi=checkout', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    // Redirect ke halaman konfirmasi
-                    window.location.href = `index.php?page=order_confirmation&id=${data.transaksi_id}`;
-                } else {
-                    alert(data.message);
-                }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Error:', error);
-                alert('Terjadi kesalahan saat memproses pesanan');
+                Swal.fire('Error', error.message, 'error');
+                location.reload(); // Fallback jika update UI gagal
+            }
+        }
+
+        // Fungsi untuk hapus item
+        async function removeCartItem(productId) {
+            try {
+                const response = await fetch(`index.php?page=cart_action&aksi=hapus&id=${productId}`);
+                const data = await parseResponse(response);
+
+                if (data.success) {
+                    Swal.fire({
+                        title: 'Berhasil!',
+                        text: data.message,
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => location.reload());
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire('Error', error.message, 'error');
+            }
+        }
+
+        // Helper function untuk parse response
+        async function parseResponse(response) {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return await response.json();
+            }
+            const text = await response.text();
+            console.error("Non-JSON response:", text);
+            throw new Error('Respons server tidak valid');
+        }
+
+
+        function updateCartUI(cartData, updatedProductId) {
+            // Update quantity display
+            const rows = document.querySelectorAll('tbody tr');
+
+            rows.forEach(row => {
+                const rowProductId = row.querySelector('.remove-item').dataset.id;
+                const item = cartData.items.find(i => i.id == rowProductId);
+
+                if (item) {
+                    // Update quantity display
+                    const quantityDisplay = row.querySelector('.quantity-display');
+                    quantityDisplay.textContent = item.quantity;
+
+                    // Update subtotal
+                    const subtotalCell = row.querySelector('td:nth-child(4)');
+                    subtotalCell.textContent = 'Rp' + numberFormat(item.subtotal);
+
+                    // Update status tombol plus
+                    const plusBtn = row.querySelector('.btn-plus');
+                    plusBtn.disabled = item.quantity >= item.stok;
+                }
             });
+
+            // Update total
+            const totalElement = document.querySelector('.card-body strong');
+            totalElement.textContent = 'Rp' + numberFormat(cartData.total);
+
+            // Update summary jika ada di modal checkout
+            const summaryProducts = document.getElementById('summary-products');
+            if (summaryProducts) {
+                summaryProducts.textContent = 'Rp' + numberFormat(cartData.total);
+                const shipping = document.getElementById('summary-shipping').textContent.replace('Rp', '').replace(/\./g, '') || 0;
+                const totalPayment = cartData.total + parseFloat(shipping);
+                document.getElementById('summary-total').textContent = 'Rp' + numberFormat(totalPayment);
+            }
+        }
+
+        function numberFormat(number) {
+            return parseFloat(number).toLocaleString('id-ID');
+        }
+        // Fungsi untuk update tampilan keranjang
+        // function updateCartUI(cartData) {
+        //     // Update quantity dan subtotal di setiap row
+        //     document.querySelectorAll('tr').forEach(row => {
+        //         const productId = row.querySelector('.remove-item')?.dataset.id;
+        //         if (!productId) return;
+
+        //         // Cari item berdasarkan ID
+        //         const item = cartData.items.find(i => i.id == productId);
+        //         if (item) {
+        //             row.querySelector('.quantity-display').textContent = item.quantity;
+        //             row.querySelector('td:nth-child(4)').textContent =
+        //                 'Rp' + item.subtotal.toLocaleString('id-ID');
+        //         }
+        //     });
+
+        //     // Update total harga di ringkasan
+        //     document.querySelector('.card-body strong').textContent =
+        //         'Rp' + cartData.total.toLocaleString('id-ID');
+
+        //     // Update juga summary modal checkout jika modal sudah terbuka
+        //     const summaryProducts = document.getElementById('summary-products');
+        //     const summaryTotal = document.getElementById('summary-total');
+        //     const summaryShipping = document.getElementById('summary-shipping');
+
+        //     if (summaryProducts && summaryTotal && summaryShipping) {
+        //         summaryProducts.textContent = 'Rp' + cartData.total.toLocaleString('id-ID');
+
+        //         const tarifText = summaryShipping.textContent.replace('Rp', '').replace(/\./g, '') || '0';
+        //         const tarif = parseInt(tarifText);
+        //         const newTotal = cartData.total + tarif;
+
+        //         summaryTotal.textContent = 'Rp' + newTotal.toLocaleString('id-ID');
+        //     }
+        // }
+
     });
 </script>

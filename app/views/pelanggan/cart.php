@@ -20,6 +20,6 @@ $content_view = base_path('app/views/pelanggan/Cart/index.php');
 include base_path('app/views/pelanggan/home_layout.php');
 
 // Di cart.php sebelum memuat view
-echo '<pre>';
-print_r($cart);
-echo '</pre>';
+// echo '<pre>';
+// print_r($cart);
+// echo '</pre>';

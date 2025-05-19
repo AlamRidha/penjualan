@@ -84,4 +84,11 @@ class AuthController
             }
         }
     }
+
+    public function logoutPelanggan()
+    {
+        $this->auth->logout();
+        header("Location:" . base_url('index.php?page=login_pelanggan'));
+        exit;
+    }
 }
