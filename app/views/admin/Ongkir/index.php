@@ -106,6 +106,7 @@
                 success: function(response) {
                     if (response.success) {
                         $('#modalTambahOngkir').modal('hide');
+                        $('#formTambahOngkir')[0].reset();
                         Swal.fire({
                             icon: 'success',
                             title: 'Sukses!',
@@ -122,6 +123,11 @@
                     Swal.fire('Gagal!', 'Terjadi kesalahan: ' + xhr.statusText, 'error');
                 }
             });
+        });
+
+
+        $('#modalTambahOngkir').on('show.bs.modal', function() {
+            $('#formTambahOngkir')[0].reset();
         });
 
         // Handle klik tombol edit
