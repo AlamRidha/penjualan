@@ -264,7 +264,9 @@ function checkout($conn)
         error_log("File data: " . json_encode($_FILES));
 
         // Validasi folder upload
-        $uploadDir = '../../uploads/bukti/';
+        $uploadDir = __DIR__ . '/../../uploads/bukti/';
+        // atau
+        // $uploadDir = './uploads/bukti/';
         if (!is_dir($uploadDir) && !mkdir($uploadDir, 0777, true)) {
             throw new Exception('Tidak dapat membuat direktori upload');
         }
