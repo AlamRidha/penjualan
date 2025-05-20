@@ -17,17 +17,15 @@
     $userId = $_SESSION['pelanggan']['id_pelanggan'];
 
     // Query untuk mendapatkan semua pembelian user
-    $query = "
-        SELECT p.id_pembelian, p.tanggal_pembelian, p.total_pembelian, 
-               p.status_pembelian, p.resi_pengiriman, p.alamat_pengiriman,
-               o.nama_kota, o.tarif,
-               py.bukti_pembayaran, py.bank, py.tanggal_pembayaran, py.nama as nama_pemilik_rekening
-        FROM pembelian p
-        LEFT JOIN ongkir o ON p.id_ongkir = o.id_ongkir
-        LEFT JOIN pembayaran py ON p.id_pembelian = py.id_pembelian
-        WHERE p.id_pelanggan = ?
-        ORDER BY p.tanggal_pembelian DESC
-    ";
+    $query = "SELECT p.id_pembelian, p.tanggal_pembelian, p.total_pembelian, 
+                     p.status_pembelian, p.resi_pengiriman, p.alamat_pengiriman,
+                     o.nama_kota, o.tarif,
+                     py.bukti_pembayaran, py.bank, py.tanggal_pembayaran, py.nama as nama_pemilik_rekening
+              FROM pembelian p
+              LEFT JOIN ongkir o ON p.id_ongkir = o.id_ongkir
+              LEFT JOIN pembayaran py ON p.id_pembelian = py.id_pembelian
+              WHERE p.id_pelanggan = ?
+              ORDER BY p.tanggal_pembelian DESC";
 
     $stmt = $conn->prepare($query);
     $stmt->bind_param("i", $userId);
@@ -49,7 +47,8 @@
                 <div class="card shadow-sm h-100">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
                         <h5 class="mb-0 fw-bold text-dark">
-                            #<?= $pembelian['id_pembelian'] ?>
+                            Pesanan <?php echo date('d M Y', strtotime($pembelian['tanggal_pembelian'])); ?>
+                            <!-- #<?= $pembelian['id_pembelian'] ?> -->
                         </h5>
                         <span class="badge rounded-pill bg-<?=
                                                             $pembelian['status_pembelian'] == 'pending' ? 'warning' : ($pembelian['status_pembelian'] == 'dibayar' ? 'info' : ($pembelian['status_pembelian'] == 'dikirim' ? 'primary' : ($pembelian['status_pembelian'] == 'selesai' ? 'success' : 'danger')))
@@ -68,7 +67,6 @@
                             </div>
                         </div>
 
-                        <!-- Tombol Aksi -->
                         <div class="d-flex justify-content-between mt-3">
                             <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal"
                                 data-bs-target="#detailPembelian<?= $pembelian['id_pembelian'] ?>">
@@ -109,10 +107,29 @@
                                                 <strong>Kota Tujuan:</strong><br>
                                                 <?= $pembelian['nama_kota'] ?>
                                             </p>
-                                            <?php if ($pembelian['resi_pengiriman']): ?>
+                                            <?php if ($pembelian['status_pembelian'] != 'pending' && !empty($pembelian['resi_pengiriman'])): ?>
                                                 <p>
                                                     <strong>Nomor Resi:</strong><br>
                                                     <?= $pembelian['resi_pengiriman'] ?>
+                                                    <?php if ($pembelian['status_pembelian'] == 'dikirim'): ?>
+                                                        <br>
+                                                        <small class="text-success">
+                                                            <i class="fas fa-truck me-1"></i> Sedang dikirim
+                                                        </small>
+                                                    <?php elseif ($pembelian['status_pembelian'] == 'selesai'): ?>
+                                                        <br>
+                                                        <small class="text-success">
+                                                            <i class="fas fa-check-circle me-1"></i> Telah diterima
+                                                        </small>
+                                                    <?php endif; ?>
+                                                </p>
+                                            <?php elseif ($pembelian['status_pembelian'] != 'pending'): ?>
+                                                <p class="text-muted">
+                                                    <i class="fas fa-info-circle me-1"></i> Nomor resi belum tersedia
+                                                </p>
+                                            <?php else: ?>
+                                                <p class="text-muted">
+                                                    <i class="fas fa-clock me-1"></i> Menunggu konfirmasi pembayaran
                                                 </p>
                                             <?php endif; ?>
                                         </div>
@@ -133,6 +150,7 @@
                                                 <div class="text-center mt-3">
                                                     <img src="./uploads/bukti/<?= $pembelian['bukti_pembayaran'] ?>"
                                                         class="img-fluid rounded border" style="max-height: 150px;">
+                                                    <p class="small text-muted mt-2">Klik gambar untuk memperbesar</p>
                                                 </div>
                                             <?php endif; ?>
                                         </div>
@@ -153,18 +171,15 @@
                                     </thead>
                                     <tbody>
                                         <?php
-                                        $stmtProduk = $conn->prepare("
-                                            SELECT pp.*, pr.foto_produk
-                                            FROM pembelian_produk pp
-                                            LEFT JOIN produk pr ON pp.id_produk = pr.id_produk
-                                            WHERE pp.id_pembelian = ?
-                                        ");
+                                        $stmtProduk = $conn->prepare("SELECT pp.*, pr.foto_produk
+                                                                     FROM pembelian_produk pp
+                                                                     LEFT JOIN produk pr ON pp.id_produk = pr.id_produk
+                                                                     WHERE pp.id_pembelian = ?");
                                         $stmtProduk->bind_param("i", $pembelian['id_pembelian']);
                                         $stmtProduk->execute();
                                         $produkResult = $stmtProduk->get_result();
 
-                                        while ($produk = $produkResult->fetch_assoc()):
-                                        ?>
+                                        while ($produk = $produkResult->fetch_assoc()): ?>
                                             <tr>
                                                 <td>
                                                     <div class="d-flex align-items-center">
@@ -212,7 +227,6 @@
     </div>
 </div>
 
-<!-- CSS Tambahan -->
 <style>
     .card {
         border-radius: 10px;
@@ -240,10 +254,8 @@
     }
 </style>
 
-<!-- JavaScript untuk Cetak Nota -->
 <script>
     function printNota(idPembelian) {
-        // Buka halaman cetak di tab baru
         window.open('index.php?page=pelanggan/cetak_nota&id=' + idPembelian, '_blank');
     }
 
