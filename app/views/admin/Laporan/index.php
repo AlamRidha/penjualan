@@ -38,11 +38,6 @@
     <div class="card shadow mb-4">
         <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-primary">Data Pembelian Selesai</h6>
-            <div>
-                <button id="cetakLaporan" class="btn btn-success">
-                    <i class="fas fa-print"></i> Cetak Laporan
-                </button>
-            </div>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -100,19 +95,6 @@
             $('#startDate').val('');
             $('#endDate').val('');
             loadLaporan();
-        });
-
-        // Handle cetak laporan
-        $('#cetakLaporan').click(function() {
-            const startDate = $('#startDate').val();
-            const endDate = $('#endDate').val();
-
-            if (!startDate || !endDate) {
-                Swal.fire('Peringatan', 'Harap pilih tanggal mulai dan tanggal akhir', 'warning');
-                return;
-            }
-
-            window.open(`app/controllers/LaporanController.php?aksi=cetak_laporan&start_date=${startDate}&end_date=${endDate}`, '_blank');
         });
 
         // Fungsi untuk memuat data laporan

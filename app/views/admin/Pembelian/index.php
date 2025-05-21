@@ -1,4 +1,3 @@
-<!-- Tambahkan di bagian HTML -->
 <div class="row mb-3">
     <div class="col-md-6">
         <h2>Data Pembelian</h2>
@@ -93,6 +92,28 @@
                             </tr>
                         </table>
                     </div>
+                    <div class="col-md-6">
+                        <h6 class="mt-3">Informasi Pembayaran</h6>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th>Bank</th>
+                                <td id="detail_bank">-</td>
+                            </tr>
+                            <tr>
+                                <th>Nama Pemilik Rekening</th>
+                                <td id="detail_nama_pemilik">-</td>
+                            </tr>
+                            <tr>
+                                <th>Tanggal Pembayaran</th>
+                                <td id="detail_tanggal_bayar">-</td>
+                            </tr>
+                            <tr>
+                                <th>Bukti Pembayaran</th>
+                                <td id="detail_bukti_pembayaran">
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
                 </div>
 
                 <h6 class="mt-3">Produk yang Dibeli</h6>
@@ -107,7 +128,6 @@
                             </tr>
                         </thead>
                         <tbody id="detailProdukBody">
-                            <!-- Data produk akan diisi via AJAX -->
                         </tbody>
                         <tfoot>
                             <tr>
@@ -222,10 +242,40 @@
                     const data = response.data;
                     const produk = response.produk || [];
 
+                    // Isi data pembayaran
+                    const pembayaran = response.pembayaran || {};
+
+                    $('#detail_bank').text(pembayaran.bank || '-');
+                    $('#detail_nama_pemilik').text(pembayaran.nama || '-');
+                    $('#detail_tanggal_bayar').text(pembayaran.tanggal_pembayaran || '-');
+
+                    const buktiContainer = $('#detail_bukti_pembayaran');
+                    buktiContainer.empty();
+
+                    if (pembayaran.bukti_pembayaran) {
+                        buktiContainer.append(`<div class="text-center">
+                        <img src="uploads/bukti/${pembayaran.bukti_pembayaran}" class="img-fluid rounded border mb-2" 
+                        style="max-height: 150px;"><div>
+                        <a href="uploads/bukti/${pembayaran.bukti_pembayaran}" target="_blank" 
+                        class="btn btn-sm btn-outline-primary"><i class="fas fa-expand"></i> Lihat Full Size</a>
+                        </div></div>`);
+                    } else {
+                        // buktiContainer.text('Tidak ada bukti pembayaran');
+                        buktiContainer.append(`<div class="text-danger text-center fw-bold"><i class="fas fa-exclamation-circle me-1"></i> Pembayaran belum dilakukan</div>`);
+                    }
+
+                    // Format ongkos kirim dan total pembelian
+                    const ongkir = parseIndonesianNumber(data.tarif) || 0;
+                    const totalPembelianDB = parseIndonesianNumber(data.total_pembelian) || 0;
+
+                    // tampilan
+                    const formattedOngkir = numberFormat(ongkir);
+                    const formattedTotalPembelian = numberFormat(totalPembelianDB);
+
                     // Isi data pembelian
                     $('#detail_id').text(data.id_pembelian);
                     $('#detail_tanggal').text(data.tanggal_pembelian);
-                    $('#detail_total').text('Rp' + data.total_pembelian);
+                    $('#detail_total').text(formattedTotalPembelian);
                     $('#detail_status').html(getStatusBadge(data.status_pembelian));
                     $('#detail_resi').text(data.resi_pengiriman || '-');
 
@@ -234,7 +284,7 @@
                     $('#detail_email').text(data.email);
                     $('#detail_no_hp').text(data.no_hp);
                     $('#detail_kota').text(data.nama_kota);
-                    $('#detail_ongkir').text('Rp' + data.tarif);
+                    $('#detail_ongkir').text(formattedOngkir);
                     $('#detail_alamat').text(data.alamat_pengiriman);
 
                     // Isi data produk
@@ -244,19 +294,19 @@
                     if (produk.length > 0) {
                         produk.forEach(function(item) {
                             produkHtml += `
-                        <tr>
-                            <td>
-                                <strong>${item.nama_produk}</strong>
-                                ${item.foto_produk ? 
-                                 `<br><img src="${item.foto_produk}" alt="${item.nama_produk}" 
-                                  class="img-thumbnail mt-2" style="max-width: 80px;">` : ''}
-                                ${item.deskripsi_produk ? 
-                                 `<p class="text-muted small mt-1 mb-0">${item.deskripsi_produk}</p>` : ''}
-                            </td>
-                            <td class="text-end">${item.harga_formatted}</td>
-                            <td class="text-center">${item.jumlah}</td>
-                            <td class="text-end">${item.sub_harga_formatted}</td>
-                        </tr>
+                    <tr>
+                        <td>
+                            <strong>${item.nama_produk}</strong>
+                            ${item.foto_produk ? 
+                             `<br><img src="${item.foto_produk}" alt="${item.nama_produk}" 
+                              class="img-thumbnail mt-2" style="max-width: 80px;">` : ''}
+                            ${item.deskripsi_produk ? 
+                             `<p class="text-muted small mt-1 mb-0">${item.deskripsi_produk}</p>` : ''}
+                        </td>
+                        <td class="text-end">${item.harga_formatted}</td>
+                        <td class="text-center">${item.jumlah}</td>
+                        <td class="text-end">${item.sub_harga_formatted}</td>
+                    </tr>
                     `;
                             totalProduk += parseFloat(item.sub_harga);
                         });
@@ -266,13 +316,13 @@
 
                     $('#detailProdukBody').html(produkHtml);
 
-                    // Hitung total
-                    const totalOngkir = parseFloat(data.tarif) || 0;
-                    const totalPembelian = totalProduk + totalOngkir;
+                    // Hitung total - gunakan nilai yang konsisten
+                    const totalPembelianCalculated = totalProduk + ongkir;
 
-                    $('#totalProduk').text('Rp' + numberFormat(totalProduk));
-                    $('#totalOngkir').text('Rp' + numberFormat(totalOngkir));
-                    $('#totalPembelian').text('Rp' + numberFormat(totalPembelian));
+                    // Tampilkan nilai dengan format yang konsisten
+                    $('#totalProduk').text(numberFormat(totalProduk));
+                    $('#totalOngkir').text(numberFormat(ongkir));
+                    $('#totalPembelian').text(numberFormat(totalPembelianCalculated));
 
                     $('#modalDetailPembelian').modal('show');
                 } else {
@@ -281,9 +331,25 @@
             });
         });
 
+        function parseIndonesianNumber(numStr) {
+            // Hilangkan titik sebagai pemisah ribuan dan ganti koma dengan titik
+            return parseFloat(numStr.replace(/\./g, '').replace(',', '.'));
+        }
+
         // Fungsi untuk format number
         function numberFormat(number) {
-            return new Intl.NumberFormat('id-ID').format(number);
+            // Pastikan number adalah angka
+            if (number % 1 === 0) {
+                return 'Rp' + new Intl.NumberFormat('id-ID', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                }).format(number);
+            }
+            // Jika ada desimal, tampilkan 2 digit
+            return 'Rp' + new Intl.NumberFormat('id-ID', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(number);
         }
 
         // Handle klik tombol ubah status

@@ -248,8 +248,8 @@ function listPembelian($conn)
 
     $orderColumn = $columns[$orderIndex] ?? $columns[0];
 
-    // Query dasar dengan join ke tabel pelanggan
-    $baseQuery = "SELECT p.*, pl.nama_pelanggan 
+    $baseQuery = "SELECT p.*, pl.nama_pelanggan, 
+                 (SELECT SUM(pp.sub_harga) FROM pembelian_produk pp WHERE pp.id_pembelian = p.id_pembelian) as subtotal_produk
                  FROM pembelian p
                  JOIN pelanggan pl ON p.id_pelanggan = pl.id_pelanggan";
 
@@ -293,6 +293,19 @@ function listPembelian($conn)
     $no = $start + 1;
 
     while ($row = $result->fetch_assoc()) {
+
+        // Hitung ulang total untuk memastikan konsistensi
+        $total_produk = $row['subtotal_produk'] ?? 0;
+        $ongkir = $row['tarif'] ?? 0;
+        $total_pembelian = $total_produk + $ongkir;
+
+        // Bandingkan dengan total yang tersimpan
+        if (abs($total_pembelian - $row['total_pembelian']) > 0.01) {
+            // Jika ada perbedaan, gunakan yang dihitung ulang
+            $total_pembelian = $row['total_pembelian']; // atau bisa diperbarui di database
+        }
+
+
         $data[] = [
             'no' => $no++,
             'id_pembelian' => $row['id_pembelian'],
@@ -319,6 +332,10 @@ function getDetailPembelian($conn)
     header('Content-Type: application/json');
 
     $id = $_GET['id'] ?? 0;
+    if (!is_numeric($id) || $id <= 0) {
+        echo json_encode(['success' => false, 'message' => 'ID pembelian tidak valid']);
+        exit;
+    }
 
     try {
         // Query untuk data pembelian
@@ -329,23 +346,42 @@ function getDetailPembelian($conn)
                                WHERE p.id_pembelian = ?");
         $stmt->bind_param("i", $id);
         $stmt->execute();
-        $pembelian = $stmt->get_result()->fetch_assoc();
+        $result = $stmt->get_result();
 
-        if (!$pembelian) {
+        if ($result->num_rows === 0) {
             throw new Exception('Data pembelian tidak ditemukan');
+        }
+
+        $data = $result->fetch_assoc();
+
+        // Query terpisah untuk data pembayaran
+        $stmtPembayaran = $conn->prepare("SELECT * FROM pembayaran WHERE id_pembelian = ?");
+        $stmtPembayaran->bind_param("i", $id);
+        $stmtPembayaran->execute();
+        $resultPembayaran = $stmtPembayaran->get_result();
+
+        $pembayaran = [];
+        if ($resultPembayaran->num_rows > 0) {
+            $pembayaran = $resultPembayaran->fetch_assoc();
+
+            // Format tanggal pembayaran jika ada
+            if (!empty($pembayaran['tanggal_pembayaran'])) {
+                $pembayaran['tanggal_pembayaran'] = date('d/m/Y H:i', strtotime($pembayaran['tanggal_pembayaran']));
+            }
         }
 
         // Ambil detail produk yang dibeli
         $produk = getDetailProdukPembelian($conn, $id);
 
         // Format data
-        $pembelian['tanggal_pembelian'] = date('d/m/Y H:i', strtotime($pembelian['tanggal_pembelian']));
-        $pembelian['total_pembelian'] = number_format($pembelian['total_pembelian'], 0, ',', '.');
-        $pembelian['tarif'] = number_format($pembelian['tarif'], 0, ',', '.');
+        $data['tanggal_pembelian'] = date('d/m/Y H:i', strtotime($data['tanggal_pembelian']));
+        $data['total_pembelian'] = number_format($data['total_pembelian'], 0, ',', '.');
+        $data['tarif'] = number_format($data['tarif'], 0, ',', '.');
 
         echo json_encode([
             'success' => true,
-            'data' => $pembelian,
+            'data' => $data,
+            'pembayaran' => $pembayaran,
             'produk' => $produk
         ]);
     } catch (Exception $e) {
@@ -386,6 +422,9 @@ function getDetailProdukPembelian($conn, $id_pembelian)
     $produk = [];
 
     while ($row = $result->fetch_assoc()) {
+        // Pastikan nilai numeric
+        $row['harga'] = (float)$row['harga'];
+        $row['sub_harga'] = (float)$row['sub_harga'];
         $row['harga_formatted'] = 'Rp' . number_format($row['harga'], 0, ',', '.');
         $row['sub_harga_formatted'] = 'Rp' . number_format($row['sub_harga'], 0, ',', '.');
         $produk[] = $row;
