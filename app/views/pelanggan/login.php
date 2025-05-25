@@ -50,7 +50,7 @@ unset($_SESSION['error']);
         <?php if ($error): ?>
             <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
-        <form action="index.php?page=login_pelanggan_process" method="POST">
+        <form method="POST" id="loginPelangganForm">
             <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
                 <input type="email" name="email" class="form-control" required autofocus>
@@ -66,3 +66,37 @@ unset($_SESSION['error']);
 </body>
 
 </html>
+
+<script>
+    document.getElementById('loginPelangganForm').addEventListener('submit', function(e) {
+        e.preventDefault()
+
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+
+        fetch('index.php?page=login_pelanggan_process', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: "Berhasil!",
+                        text: data.message,
+                        icon: "success",
+                        showConfirmButton: false,
+                        timer: 1500
+                    }).then(() => {
+                        window.location.href = data.redirect;
+                    })
+                } else {
+                    Swal.fire('Gagal', data.message, 'error');
+                }
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+            });
+    })
+</script>

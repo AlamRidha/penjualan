@@ -75,20 +75,23 @@ include base_path('app/views/layouts/header.php');
         </button>
         <a class="navbar-brand" href="<?= base_url('index.php?page=dashboard'); ?>">Dashboard</a>
         <div class="d-flex ms-auto">
-            <a href="<?= base_url('index.php?page=logout'); ?>" class="btn btn-outline-light me-2">Logout</a>
+            <a href="#" class="btn btn-outline-light me-2" onclick="confirmAdminLogout()">Logout</a>
         </div>
     </div>
 </nav>
 
 <!-- Sidebar -->
 <div class="sidebar" id="sidebar">
-    <a href="<?= base_url('index.php?page=admin/dashboard'); ?>">🏠 Dashboard</a>
-    <a href="<?= base_url('index.php?page=admin/data_produk'); ?>">📁 Data Produk</a>
-    <a href="<?= base_url('index.php?page=admin/data_pelanggan'); ?>">🧑 Data Pelanggan</a>
-    <a href="<?= base_url('index.php?page=admin/data_ongkir'); ?>">💰 Tarif Kota</a>
-    <a href="<?= base_url('index.php?page=admin/data_pembelian'); ?>">💳 Pembelian</a>
-    <a href="<?= base_url('index.php?page=admin/data_penjualan'); ?>">🛒 Penjualan</a>
-    <a href="<?= base_url('index.php?page=logout'); ?>">🚪 Logout</a>
+    <a href="<?= base_url('index.php?page=admin/dashboard'); ?>" class="nav-link">🏠 Dashboard</a>
+    <a href="<?= base_url('index.php?page=admin/data_produk'); ?>" class="nav-link">📁 Data Produk</a>
+    <a href="<?= base_url('index.php?page=admin/data_pelanggan'); ?>" class="nav-link">🧑 Data Pelanggan</a>
+    <a href="<?= base_url('index.php?page=admin/data_ongkir'); ?>" class="nav-link">💰 Tarif Kota</a>
+    <a href="<?= base_url('index.php?page=admin/data_pembelian'); ?>" class="nav-link">💳 Pembelian</a>
+    <a href="<?= base_url('index.php?page=admin/data_penjualan'); ?>" class="nav-link">🛒 Penjualan</a>
+    <!-- <a href="<?= base_url('index.php?page=logout'); ?>">🚪 Logout</a> -->
+    <a href="#" onclick="confirmAdminLogout()" class="nav-link">
+        🚪 Logout
+    </a>
 </div>
 
 <!-- Content -->
@@ -111,6 +114,53 @@ include base_path('app/views/layouts/header.php');
         sidebar.classList.toggle('collapsed');
         content.classList.toggle('expanded');
     });
+
+    function confirmAdminLogout() {
+        Swal.fire({
+            title: "Konfirmasi Logout",
+            text: "Apakah Anda yakin ingin logout?",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, Logout',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Tampilkan loading
+                Swal.fire({
+                    title: 'Sedang memproses...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                // Proses logout via AJAX
+                fetch('index.php?page=logout', {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Logout Berhasil!',
+                                text: data.message,
+                                icon: 'success',
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(() => {
+                                window.location.href = data.redirect;
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        Swal.fire('Error', 'Gagal melakukan logout', 'error');
+                    });
+            }
+        })
+    }
 </script>
 
 

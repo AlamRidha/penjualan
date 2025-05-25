@@ -44,7 +44,7 @@ include base_path('app/views/layouts/header.php');
                     <a class="nav-link <?= ($_GET['page'] ?? '') === 'riwayat' ? 'active' : '' ?>" href="<?= base_url('index.php?page=pelanggan/riwayat'); ?>">Riwayat</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="<?= base_url('index.php?page=pelanggan/logout'); ?>">Logout</a>
+                    <a class="nav-link" href="#" onclick="confirmPelangganLogout()">Logout</a>
                 </li>
             </ul>
         </div>
@@ -61,6 +61,56 @@ include base_path('app/views/layouts/header.php');
     }
     ?>
 </main>
+
+<script>
+    // Fungsi logout untuk pelanggan
+    function confirmPelangganLogout() {
+        Swal.fire({
+            title: 'Konfirmasi Logout',
+            text: 'Anda yakin ingin keluar dari akun Anda?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, Keluar',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Tampilkan loading
+                Swal.fire({
+                    title: 'Sedang memproses...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                // Proses logout via AJAX
+                fetch('index.php?page=pelanggan/logout', {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Berhasil Keluar!',
+                                text: 'Anda telah logout dari sistem',
+                                icon: 'success',
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(() => {
+                                window.location.href = data.redirect;
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        Swal.fire('Error', 'Gagal melakukan logout', 'error');
+                    });
+            }
+        });
+    }
+</script>
 
 
 <?php include base_path('app/views/layouts/footer.php'); ?>

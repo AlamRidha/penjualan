@@ -94,11 +94,11 @@ switch ($page) {
         break;
 
     case 'pelanggan/logout':
-        (new AuthController())->logoutPelanggan();
+        (new AuthController())->logoutWithConfirmation('pelanggan');
         break;
 
     case 'logout':
-        (new AuthController())->logoutAdmin();
+        (new AuthController())->logoutWithConfirmation('admin');
         break;
 
     // Dashboard default

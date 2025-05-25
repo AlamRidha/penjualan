@@ -13,28 +13,47 @@ class AuthController
     // Login admin
     public function loginAdmin()
     {
+        header('Content-Type: application/json');
         $username = $_POST['username'] ?? '';
         $password = $_POST['password'] ?? '';
 
         if ($this->auth->loginAdmin($username, $password)) {
-            header("Location: " . base_url('index.php?page=admin/dashboard'));
-            exit;
+            echo json_encode([
+                'success' => true,
+                'message' => 'Selamat datang, ' . $_SESSION['admin']['username'] . ' 👋',
+                'redirect' => base_url('index.php?page=admin/dashboard')
+            ]);
         } else {
-            $this->redirectWithError('../admin/login.php', 'Username atau Password admin salah!');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Username atau Password Admin Salah!',
+            ]);
         }
+
+        exit;
     }
 
     // Login pelanggan
     public function loginPelanggan()
     {
+        header('Content-Type: application/json');
+
         $email = $_POST['email'] ?? '';
         $password = $_POST['password'] ?? '';
+
         if ($this->auth->loginPelanggan($email, $password)) {
-            header("Location:" . base_url('index.php?page=pelanggan/dashboard'));
-            exit;
+            echo json_encode([
+                'success' => true,
+                'message' => 'Login pelanggan berhasil!',
+                'redirect' => base_url('index.php?page=pelanggan/dashboard')
+            ]);
         } else {
-            $this->redirectWithError('../pelanggan/login.php', 'Email atau Password pelanggan salah!');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Email atau Password pelanggan salah!'
+            ]);
         }
+        exit;
     }
 
     // Logout (digunakan untuk admin maupun pelanggan)
@@ -91,4 +110,20 @@ class AuthController
         header("Location:" . base_url('index.php?page=login_pelanggan'));
         exit;
     }
+
+
+    public function logoutWithConfirmation($type)
+    {
+        header('Content-Type: application/json');
+        $this->auth->logout();
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Logout berhasil, Anda Akan Diaratkan Ke Halaman Login',
+            'redirect' => ($type === 'admin') ? base_url('index.php?page=login_admin') : base_url('index.php?page=login_pelanggan')
+        ]);
+
+        exit;
+    }
 }
+

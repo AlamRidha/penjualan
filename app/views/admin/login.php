@@ -51,7 +51,7 @@ unset($_SESSION['error']);
         <?php if ($error): ?>
             <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
-        <form action="index.php?page=login_admin_process" method="POST">
+        <form method="POST" id="loginAdminForm">
             <div class="mb-3">
                 <label for="username" class="form-label">Username</label>
                 <input type="text" name="username" class="form-control" required autofocus>
@@ -66,3 +66,42 @@ unset($_SESSION['error']);
 </body>
 
 </html>
+
+<script>
+    document.getElementById('loginAdminForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+
+        fetch('index.php?page=login_admin_process', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: 'Berhasil!',
+                        text: data.message,
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.href = data.redirect;
+                    });
+                } else {
+                    console.log(data);
+                    Swal.fire('Gagal', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Error', 'Terjadi kesalahan saat login', 'error');
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+            });
+    });
+</script>
