@@ -198,6 +198,41 @@ include base_path('app/views/layouts/header.php');
         color: var(--sidebar-bg);
     }
 
+    /* Gaya untuk tombol logout SweetAlert */
+    .btn-logout-swal {
+        background-color: var(--danger-color);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 500;
+        cursor: pointer;
+        margin-right: 10px;
+    }
+
+    .btn-logout-swal:hover {
+        background-color: #dc2626;
+    }
+
+    /* Gaya untuk tombol batal SweetAlert */
+    .btn-cancel-swal {
+        background-color: #e5e7eb;
+        /* Tailwind gray-200 */
+        color: #374151;
+        /* Tailwind gray-700 */
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .btn-cancel-swal:hover {
+        background-color: #d1d5db;
+        /* Tailwind gray-300 */
+    }
+
+
     /* Responsive design */
     @media (max-width: 768px) {
         .sidebar {
