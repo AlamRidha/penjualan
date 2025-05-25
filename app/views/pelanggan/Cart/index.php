@@ -175,12 +175,15 @@
     document.addEventListener("DOMContentLoaded", function() {
         // Hitung ongkir saat kota berubah
         document.getElementById('kota').addEventListener('change', function() {
-            const tarif = this.options[this.selectedIndex].dataset.tarif || 0;
-            const totalProduk = <?= $cart['total'] ?>;
-            const totalPembayaran = totalProduk + parseFloat(tarif);
+            const tarif = parseFloat(this.options[this.selectedIndex].dataset.tarif) || 0;
+            const totalProduk = parseFloat(<?= $cart['total'] ?>); // Pastikan sebagai float
+            const totalPembayaran = totalProduk + tarif;
 
-            document.getElementById('summary-shipping').textContent = 'Rp' + parseFloat(tarif).toLocaleString('id-ID');
-            document.getElementById('summary-total').textContent = 'Rp' + totalPembayaran.toLocaleString('id-ID');
+            // Format dengan benar
+            document.getElementById('summary-shipping').textContent =
+                'Rp' + tarif.toLocaleString('id-ID');
+            document.getElementById('summary-total').textContent =
+                'Rp' + totalPembayaran.toLocaleString('id-ID');
         });
 
         // Proses checkout (tidak berubah)
@@ -198,28 +201,37 @@
                     method: 'POST',
                     body: formData
                 })
-                .then(async response => {
+                .then(async (response) => {
+                    const text = await response.text(); // Baca sebagai text dulu
+
                     try {
-                        const data = await response.json();
-                        if (!response.ok) throw new Error(data.message || 'Terjadi kesalahan');
+                        // Coba parse sebagai JSON
+                        const data = JSON.parse(text);
+
+                        if (!response.ok) {
+                            throw new Error(data.message || 'Request failed');
+                        }
+
                         return data;
-                    } catch (error) {
-                        const text = await response.text();
-                        console.error("Response:", text);
-                        throw new Error('Respons tidak valid: ' + text.substring(0, 100));
+                    } catch (e) {
+                        // Jika gagal parse JSON, tampilkan raw text (untuk debugging)
+                        console.error('Invalid JSON response:', text);
+                        throw new Error('Invalid server response: ' + text.substring(0, 100));
                     }
                 })
                 .then(data => {
                     if (data.success) {
                         Swal.fire({
                             title: 'Sukses!',
-                            text: 'Pesanan Berhasil Dibuat',
+                            html: `Pesanan berhasil!<br>
+                      <strong>ID:</strong> ${data.id_pembelian}<br>
+                      <strong>Resi:</strong> ${data.resi}`,
                             icon: 'success'
                         }).then(() => {
-                            window.location.href = 'index.php?page=pelanggan/data_product';
+                            window.location.href = 'index.php?page=pelanggan/riwayat';
                         });
                     } else {
-                        throw new Error(data.message || 'Gagal memproses pesanan');
+                        throw new Error(data.message || 'Checkout gagal');
                     }
                 })
                 .catch(error => {

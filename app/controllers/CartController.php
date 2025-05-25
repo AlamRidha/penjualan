@@ -232,10 +232,38 @@ function updateCart($conn)
     exit; // Pastikan tidak ada output lain
 }
 
+function generateResiNumber($conn)
+{
+    $prefix = 'TPB';
+    $datePart = date('Ymd');
+    $randomPart = strtoupper(bin2hex(random_bytes(3))); // 6 karakter acak
+
+    // Gabungkan semua bagian
+    $resi = $prefix . '-' . $datePart . '-' . $randomPart;
+
+    // Verifikasi keunikan di database
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM pembelian WHERE resi_pengiriman = ?");
+    $stmt->bind_param("s", $resi);
+    $stmt->execute();
+    $stmt->bind_result($count);
+    $stmt->fetch();
+    $stmt->close();
+
+    // Jika sudah ada (sangat jarang), generate ulang
+    if ($count > 0) {
+        return generateResiNumber($conn);
+    }
+
+    return $resi;
+}
+
 
 // Proses checkout
 function checkout($conn)
 {
+
+    header('Content-Type: application/json');
+
     // Pastikan semua output selalu dalam format JSON
     try {
         // Validasi data
@@ -275,13 +303,16 @@ function checkout($conn)
             throw new Exception('Direktori upload tidak dapat ditulis');
         }
 
+        $resi = generateResiNumber($conn);
+
         // Mulai transaksi
         $conn->begin_transaction();
 
         // 1. Simpan data pembelian
         $stmt = $conn->prepare("INSERT INTO pembelian (
-            id_pelanggan, id_ongkir, total_pembelian, alamat_pengiriman, nama_kota, tarif
-        ) VALUES (?, ?, ?, ?, ?, ?)");
+            id_pelanggan, id_ongkir, total_pembelian, alamat_pengiriman, 
+            nama_kota, tarif, resi_pengiriman, status_pembelian
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
 
         // Dapatkan data ongkir
         $ongkirQuery = $conn->prepare("SELECT nama_kota, tarif FROM ongkir WHERE id_ongkir = ?");
@@ -299,14 +330,17 @@ function checkout($conn)
         $pelangganId = $_SESSION['pelanggan']['id_pelanggan'] ?? 0;
         $totalPembelian = (float)$_POST['total_pembelian'];
 
+        $statusPembelian = 'pending';
         $stmt->bind_param(
-            "iidssd",
+            "iidssdss",
             $pelangganId,
             $_POST['id_ongkir'],
             $totalPembelian,
             $_POST['alamat'],
             $ongkir['nama_kota'],
-            $ongkir['tarif']
+            $ongkir['tarif'],
+            $resi,
+            $statusPembelian
         );
 
         if (!$stmt->execute()) {
@@ -404,8 +438,11 @@ function checkout($conn)
         echo json_encode([
             'success' => true,
             'message' => 'Pesanan berhasil dibuat',
-            'id_pembelian' => $pembelianId
+            'id_pembelian' => $pembelianId,
+            'resi' => $resi
         ]);
+
+        exit;
     } catch (Exception $e) {
         // Rollback transaksi jika ada kesalahan
         $conn->rollback();
@@ -420,4 +457,6 @@ function checkout($conn)
             'message' => 'Error: ' . $e->getMessage()
         ]);
     }
+
+    exit;
 }

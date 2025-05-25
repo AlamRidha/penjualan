@@ -73,9 +73,7 @@
                                 <i class="fas fa-eye me-1"></i> Detail
                             </button>
 
-                            <button class="btn btn-outline-success btn-sm" onclick="printNota(<?= $pembelian['id_pembelian'] ?>)">
-                                <i class="fas fa-print me-1"></i> Cetak
-                            </button>
+
                         </div>
                     </div>
                 </div>
@@ -216,9 +214,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
-                            <button type="button" class="btn btn-primary" onclick="printNota(<?= $pembelian['id_pembelian'] ?>)">
-                                <i class="fas fa-print me-1"></i> Cetak Nota
-                            </button>
+
                         </div>
                     </div>
                 </div>
@@ -255,10 +251,6 @@
 </style>
 
 <script>
-    function printNota(idPembelian) {
-        window.open('index.php?page=pelanggan/cetak_nota&id=' + idPembelian, '_blank');
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
         const modalImages = document.querySelectorAll('.modal-body img');
 
