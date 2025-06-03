@@ -2,6 +2,8 @@
 .env.backup
 .env.production
 
+
+uploads/
 uploads/*.jpg
 uploads/*.jpeg
 uploads/*.png
