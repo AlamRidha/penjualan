@@ -1,4 +1,4 @@
-<div class="container mt-4">
+<div class="container mt-1">
     <h2 class="mb-4 text-primary fw-bold">
         <i class="fas fa-history me-2"></i>Riwayat Pembelian Saya
     </h2>

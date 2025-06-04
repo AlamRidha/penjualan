@@ -119,11 +119,10 @@ class AuthController
 
         echo json_encode([
             'success' => true,
-            'message' => 'Logout berhasil, Anda Akan Diaratkan Ke Halaman Login',
+            'message' => 'Logout berhasil, Anda Akan Diarahkan Ke Halaman Login',
             'redirect' => ($type === 'admin') ? base_url('index.php?page=login_admin') : base_url('index.php?page=login_pelanggan')
         ]);
 
         exit;
     }
 }
-

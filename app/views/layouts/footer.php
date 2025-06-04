@@ -1,14 +1,22 @@
 <style>
-    .footer-gradient {
-        background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+    .app-footer {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        padding: 1.5rem 0;
+    }
+
+    .app-footer p {
+        margin-bottom: 0;
+        opacity: 0.85;
+        font-size: 0.9rem;
     }
 </style>
 
-<footer class="bg-primary text-white py-4 mt-auto footer-gradient">
+<footer class="app-footer mt-auto bg-light text-center py-3 mt-auto">
     <div class="container">
         <div class="row">
             <div class="col-12 text-center">
-                <p class="mb-0 small" style="opacity: 0.7;">
+                <p>
                     &copy; <?= date('Y') ?> <strong>TokoKu</strong>. All rights reserved.
                     <span class="d-block d-sm-inline">Versi 1.0.0</span>
                 </p>
@@ -16,7 +24,6 @@
         </div>
     </div>
 </footer>
-
 <!-- Bootstrap Bundle with Popper -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <!-- DataTables JS -->
