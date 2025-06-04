@@ -75,33 +75,63 @@ class AuthController
 
     public function registerPelanggan()
     {
-        $nama = $_POST['nama'] ?? '';
-        $email = $_POST['email'] ?? '';
-        $password = $_POST['password'] ?? '';
+        header('Content-Type: application/json');
 
-        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+        try {
+            $nama = $_POST['nama'] ?? '';
+            $email = $_POST['email'] ?? '';
+            $password = $_POST['password'] ?? '';
+            $telepon = $_POST['telepon'] ?? '';
+            $alamat = $_POST['alamat'] ?? '';
 
-        $conn = (new Database())->getConnection();
-
-        // Cek jika email sudah ada
-        $stmt = $conn->prepare("SELECT * FROM pelanggan WHERE email_pelanggan = ?");
-        $stmt->bind_param("s", $email);
-        $stmt->execute();
-        $result = $stmt->get_result();
-
-        if ($result->num_rows > 0) {
-            $this->redirectWithError('../pelanggan/register.php', 'Email sudah digunakan!');
-        } else {
-            // Insert pelanggan baru
-            $stmt = $conn->prepare("INSERT INTO pelanggan (nama_pelanggan, email_pelanggan, password_pelanggan) VALUES (?, ?, ?)");
-            $stmt->bind_param("sss", $nama, $email, $hashedPassword);
-            if ($stmt->execute()) {
-                header("Location: ../pelanggan/login.php");
-                exit;
-            } else {
-                $this->redirectWithError('../pelanggan/register.php', 'Gagal registrasi, coba lagi.');
+            // Validasi input
+            if (empty($nama) || empty($email) || empty($password) || empty($alamat)) {
+                throw new Exception('Semua field wajib harus diisi!');
             }
+
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw new Exception('Format email tidak valid!');
+            }
+
+            if (strlen($password) < 6) {
+                throw new Exception('Password minimal 6 karakter!');
+            }
+
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            $conn = (new Database())->getConnection();
+
+            // Cek jika email sudah ada
+            $stmt = $conn->prepare("SELECT * FROM pelanggan WHERE email_pelanggan = ?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            if ($result->num_rows > 0) {
+                throw new Exception('Email sudah digunakan!');
+            }
+
+            // Insert pelanggan baru
+            $stmt = $conn->prepare("INSERT INTO pelanggan (nama_pelanggan, email_pelanggan, password_pelanggan, telephone_pelanggan, alamat_pelanggan) VALUES (?, ?, ?, ?, ?)");
+            $stmt->bind_param("sssss", $nama, $email, $hashedPassword, $telepon, $alamat);
+
+            if ($stmt->execute()) {
+                http_response_code(200);
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Registrasi berhasil! Silakan login.',
+                    'redirect' => base_url('index.php?page=login_pelanggan')
+                ]);
+            } else {
+                throw new Exception('Gagal registrasi, coba lagi.');
+            }
+        } catch (Exception $e) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
         }
+        exit;
     }
 
     public function logoutPelanggan()

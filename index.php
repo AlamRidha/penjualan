@@ -90,7 +90,7 @@ switch ($page) {
         break;
 
     case 'register_pelanggan_process':
-        (new AuthController())->registerPelanggan($_POST);
+        (new AuthController())->registerPelanggan();
         break;
 
     case 'pelanggan/logout':
